@@ -1,0 +1,52 @@
+# Security model
+
+The full review with findings lands in `SECURITY.md` at the end of Phase 14.
+This document is the _design_: the threats the system is built against and the
+control that answers each one.
+
+## Trust boundaries
+
+```
+UNTRUSTED  Discord users, custom ids, modal input, addresses, tx hashes,
+           screenshots, anything a client sends.
+SEMI       Discord API (authenticates the user; says nothing about authorisation).
+           Price APIs, chain RPCs, explorers (available ≠ correct).
+TRUSTED    This process, PostgreSQL, Redis, the signer backend.
+SECRET     Bot token, DB/Redis credentials, API keys, signer credentials.
+           Live only in environment variables and process memory.
+```
+
+The bot's own database is the only authority on what a deal is and what state
+it is in.
+
+## Threats and controls
+
+| #   | Threat                                                                  | Control                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Interaction spoofing** — forging a `customId` for someone else's deal | The id is parsed as data, then the deal is loaded from the database and the actor re-checked against `DealParticipant`. Nothing is derived from the id except _which_ deal to look up.                                                                                                                                                                                      |
+| 2   | **Privilege escalation** — a party authorising their own payout         | Authorisation requires a configured staff role checked against live guild membership; `authorizedByDiscordId` may not equal the buyer or seller.                                                                                                                                                                                                                            |
+| 3   | **Stale / replayed buttons**                                            | Version + nonce in every custom id; nonce is rotated on each render. Plus the state check, which makes a replay a no-op anyway.                                                                                                                                                                                                                                             |
+| 4   | **Race conditions** — two simultaneous clicks                           | Redis mutex per deal → database transaction → `UPDATE ... WHERE status = <expected>`. The loser gets 0 rows and a friendly message. Never a lost update.                                                                                                                                                                                                                    |
+| 5   | **Double payout**                                                       | `Payout` is `@@unique([dealId])`; `idempotencyKey` is derived from the deal id; `Deal.payoutLockedAt` gates entry; the `Signer` contract is idempotent on the key; on boot the payout monitor **reconciles** every non-final payout before any new work. A crash after broadcast can never produce a second send.                                                           |
+| 6   | **Fake payment confirmation**                                           | Payments are credited only from a chain adapter read. A user-supplied hash may _hint_ where to look; it is then verified independently (recipient address, asset/contract, amount, confirmations). Screenshots have no effect on state.                                                                                                                                     |
+| 7   | **Transaction reuse**                                                   | `@@unique([network, txHash])` on `Payment` — one transaction can be credited to exactly one deal, enforced by the database.                                                                                                                                                                                                                                                 |
+| 8   | **Price manipulation**                                                  | Prices come only from the configured provider, server-side. The quote (`usdPrice`, `usdAmount`, `cryptoAmount`, `assetDecimals`, `quotedAt`, `expiresAt`, `provider`) is persisted, so every amount is reconstructable. Quotes expire; an expired quote forces a re-quote instead of accepting a stale rate. Sanity bounds reject an absurd price rather than acting on it. |
+| 9   | **Address / network mismatch**                                          | Addresses are validated per (asset, network): bech32 and base58check for Bitcoin, EIP-55 checksum for EVM, base58check with the `0x41` prefix for Tron. A BTC address is rejected for an ETH payout. Testnet and mainnet address forms are separate.                                                                                                                        |
+| 10  | **Wrong-network deposits**                                              | The payment request names the exact network, the payment record stores it, and the monitor only watches that network. Warnings are shown on every payment instruction.                                                                                                                                                                                                      |
+| 11  | **Under/over-payment**                                                  | The received amount is compared to `expectedCryptoAmount` with an explicit tolerance column. Under-payment goes to `UNDERPAID` and to staff, never to `CONFIRMED`.                                                                                                                                                                                                          |
+| 12  | **Rounding attacks**                                                    | USD HALF_UP to cents; crypto always **UP** to asset precision. The buyer total is derived from the _rounded_ fee, so displayed parts sum to the displayed total.                                                                                                                                                                                                            |
+| 13  | **Secret leakage**                                                      | No key material in any model. `Wallet.signerRef` is an opaque handle. Pino redacts key-like paths; the audit writer strips them again. No secret is ever sent to Discord.                                                                                                                                                                                                   |
+| 14  | **API abuse / DoS**                                                     | Redis fixed-window rate limits per (user, action), tighter on payout and quote actions. Price results are cached. Chain polling is batched per address set.                                                                                                                                                                                                                 |
+| 15  | **Mainnet accident**                                                    | `LIVE_MODE=false` by default; mainnet needs `LIVE_MODE=true` **and** `CHAIN_NETWORK_MODE=mainnet` **and** `LIVE_MODE_CONFIRMATION=I_UNDERSTAND_THIS_MOVES_REAL_FUNDS`, and refuses to start with the mock signer or mock price provider. Non-mainnet modes only ever expose testnet networks, so a development deployment cannot print a mainnet address.                   |
+| 16  | **Confirmation logic**                                                  | Required confirmations are per chain and configurable; they are stored **on the payment row** at creation, so lowering the setting later cannot retroactively confirm an old payment. Re-orgs drop the confirmation count back and the state with it.                                                                                                                       |
+| 17  | **Insider / staff error**                                               | Every staff action is written to `SupportAction` and `AuditLog` with actor, timestamp and before/after state. Nothing is silently reversible.                                                                                                                                                                                                                               |
+| 18  | **Database integrity**                                                  | Foreign keys, unique constraints on the paths that matter (`tickets.channelId`, `deals.publicId`, one BUYER and one SELLER per deal, one payout per deal, one tx per network), and every multi-row change inside a transaction.                                                                                                                                             |
+
+## What the bot deliberately will not do
+
+- Automatically re-send a payout after any failure, timeout, crash or retry.
+- Confirm a payment from a screenshot or an unverified hash.
+- Accept a crypto amount from a client.
+- Store, log, or display a private key or seed phrase.
+- Enable mainnet on its own.
+- Let a Discord click alone authorise a payout.

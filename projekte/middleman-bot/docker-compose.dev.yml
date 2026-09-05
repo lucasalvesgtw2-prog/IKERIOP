@@ -1,0 +1,37 @@
+# Databases only. Use this when you want to run the bot itself with
+# `npm run dev` on your host (the usual Windows workflow).
+#
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: middleman-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: middleman
+      POSTGRES_PASSWORD: middleman
+      POSTGRES_DB: middleman
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U middleman']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: middleman-redis-dev
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-dev-data:

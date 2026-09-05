@@ -1,0 +1,671 @@
+// ============================================================================
+//  MIDDLEMAN / ESCROW BOT — DATABASE SCHEMA
+//
+//  Money rules enforced by this schema:
+//   * Every USD column is DECIMAL(18,2) — never a float.
+//   * Every crypto column is DECIMAL(38,18) — enough for 18-decimal ERC20s.
+//   * The canonical value of a deal is `dealAmountUsd`. Crypto amounts are
+//     derived from a stored PriceQuote and are always reconstructable.
+//   * Private keys and seed phrases are NEVER stored. The Wallet model holds
+//     public addresses and a reference to an external signer only.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum DealStatus {
+  CREATED
+  PARTNER_ADDED
+  ROLES_ASSIGNED
+  WAITING_FOR_DEAL_DETAILS
+  WAITING_FOR_BUYER_APPROVAL
+  BUYER_APPROVED
+  CURRENCY_SELECTION
+  PAYMENT_REQUEST_CREATED
+  AWAITING_PAYMENT
+  PAYMENT_DETECTED
+  PAYMENT_CONFIRMING
+  PAYMENT_CONFIRMED
+  DEAL_IN_PROGRESS
+  WAITING_FOR_COMPLETION_CONFIRMATIONS
+  BUYER_COMPLETED
+  SELLER_COMPLETED
+  READY_FOR_PAYOUT_ADDRESS
+  PAYOUT_ADDRESS_SUBMITTED
+  PAYOUT_REVIEW
+  PAYOUT_PENDING
+  PAYOUT_BROADCAST
+  PAYOUT_CONFIRMING
+  PAYOUT_CONFIRMED
+  WAITING_FOR_SELLER_RECEIPT
+  PAYOUT_REVIEW_REQUIRED
+  COMPLETED
+  DISPUTED
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+enum TicketStatus {
+  OPEN
+  ARCHIVED
+  CLOSED
+}
+
+enum DealRole {
+  BUYER
+  SELLER
+}
+
+enum PaymentStatus {
+  PENDING
+  DETECTED
+  CONFIRMING
+  CONFIRMED
+  UNDERPAID
+  OVERPAID
+  WRONG_NETWORK
+  EXPIRED
+  FAILED
+}
+
+enum PayoutStatus {
+  DRAFT
+  AWAITING_AUTHORIZATION
+  AUTHORIZED
+  SIGNING
+  BROADCAST
+  CONFIRMING
+  CONFIRMED
+  REVIEW_REQUIRED
+  REJECTED
+  FAILED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_RELEASE_TO_SELLER
+  RESOLVED_REFUND_TO_BUYER
+  RESOLVED_OTHER
+  CANCELLED
+}
+
+enum WalletKind {
+  DEPOSIT // an address funds are received on
+  TREASURY // an address payouts are sent from
+}
+
+enum SupportActionType {
+  NOTE_ADDED
+  DEAL_PAUSED
+  DEAL_RESUMED
+  DISPUTE_CLAIMED
+  DISPUTE_RESOLVED
+  PAYOUT_AUTHORIZED
+  PAYOUT_REJECTED
+  PAYOUT_MARKED_SENT
+  DEAL_CANCELLED
+  CONFIG_CHANGED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id             String   @id @default(uuid())
+  discordId      String   @unique
+  username       String?
+  displayName    String?
+  // Soft ban: a banned user cannot open tickets or join deals.
+  banned         Boolean  @default(false)
+  bannedReason   String?
+  dealsCompleted Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ticketsOpened  Ticket[]           @relation("TicketOpener")
+  participations DealParticipant[]
+  auditLogs      AuditLog[]
+  supportActions SupportAction[]    @relation("SupportActor")
+  disputesOpened Dispute[]          @relation("DisputeOpener")
+
+  @@index([discordId])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Tickets
+// ---------------------------------------------------------------------------
+
+model Ticket {
+  id          String       @id @default(uuid())
+  // Monotonic per-guild sequence used for `middleman-0001`.
+  sequence    Int
+  guildId     String
+  channelId   String       @unique
+  status      TicketStatus @default(OPEN)
+
+  openedById  String
+  openedBy    User         @relation("TicketOpener", fields: [openedById], references: [id])
+
+  closedAt    DateTime?
+  closedBy    String?
+  closeReason String?
+  archivedAt  DateTime?
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  deal        Deal?
+
+  @@unique([guildId, sequence])
+  @@index([guildId, status])
+  @@map("tickets")
+}
+
+// ---------------------------------------------------------------------------
+// Deals
+// ---------------------------------------------------------------------------
+
+model Deal {
+  id       String @id @default(uuid())
+  // Human-facing id, e.g. "MM-0001".
+  publicId String @unique
+
+  ticketId String @unique
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  guildId  String
+
+  // --- participants (denormalised Discord ids for fast interaction guards) ---
+  creatorDiscordId String
+  buyerDiscordId   String?
+  sellerDiscordId  String?
+
+  // --- deal details (entered by the seller) ---
+  item            String?
+  description     String? @db.Text
+  additionalTerms String? @db.Text
+
+  // --- money: the canonical value of this deal is USD ---
+  dealAmountUsd  Decimal? @db.Decimal(18, 2)
+  feePercentage  Decimal  @default(5) @db.Decimal(7, 4)
+  feeUsd         Decimal? @db.Decimal(18, 2)
+  buyerTotalUsd  Decimal? @db.Decimal(18, 2)
+  sellerPayoutUsd Decimal? @db.Decimal(18, 2)
+
+  // --- settlement rails ---
+  buyerAsset    String?
+  buyerNetwork  String?
+  sellerAsset   String?
+  sellerNetwork String?
+
+  // --- payment (buyer -> escrow) ---
+  paymentCryptoAmount Decimal? @db.Decimal(38, 18)
+  paymentAddress      String?
+  paymentTxHash       String?
+
+  // --- payout (escrow -> seller) ---
+  payoutCryptoAmount Decimal? @db.Decimal(38, 18)
+  payoutAddress      String?
+  payoutTxHash       String?
+
+  // --- state machine ---
+  status DealStatus @default(CREATED)
+
+  // --- explicit confirmations; each one is a separate, auditable fact ---
+  buyerApproved       Boolean @default(false)
+  buyerApprovedAt     DateTime?
+  buyerCompleted      Boolean @default(false)
+  buyerCompletedAt    DateTime?
+  sellerCompleted     Boolean @default(false)
+  sellerCompletedAt   DateTime?
+  sellerReceivedFunds Boolean @default(false)
+  sellerReceivedAt    DateTime?
+
+  // Set while a payout is being processed; blocks any second payout attempt.
+  payoutLockedAt DateTime?
+  // Incremented on every persisted state change — optimistic concurrency.
+  version        Int      @default(0)
+
+  // Discord message ids of the live panels, so they can be re-rendered.
+  summaryMessageId  String?
+  paymentMessageId  String?
+  statusMessageId   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
+  completedAt DateTime?
+
+  participants DealParticipant[]
+  details      DealDetails[]
+  payments     Payment[]
+  payouts      Payout[]
+  quotes       PriceQuote[]
+  disputes     Dispute[]
+  auditLogs    AuditLog[]
+  supportActions SupportAction[]
+  transitions  StateTransition[]
+
+  @@index([status])
+  @@index([guildId, status])
+  @@index([buyerDiscordId])
+  @@index([sellerDiscordId])
+  @@index([expiresAt])
+  @@map("deals")
+}
+
+model DealParticipant {
+  id        String   @id @default(uuid())
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  discordId String
+  role      DealRole
+  // The ticket opener. Orthogonal to the role: the creator is also the buyer
+  // or the seller, never a third party.
+  isCreator Boolean  @default(false)
+
+  addedAt DateTime @default(now())
+
+  // Exactly one row per user per deal — the same person cannot hold two roles.
+  @@unique([dealId, userId])
+  // Exactly one BUYER and one SELLER per deal, enforced by the database.
+  @@unique([dealId, role])
+  @@index([dealId])
+  @@index([discordId])
+  @@map("deal_participants")
+}
+
+/**
+ * Every submitted version of the deal details. The current version is the one
+ * with the highest `revision`; older revisions are kept so a "request changes"
+ * cycle is fully auditable.
+ */
+model DealDetails {
+  id       String @id @default(uuid())
+  dealId   String
+  deal     Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  revision Int
+
+  item            String
+  description     String  @db.Text
+  additionalTerms String? @db.Text
+  dealAmountUsd   Decimal @db.Decimal(18, 2)
+
+  submittedByDiscordId String
+  // Set when the buyer rejected this revision.
+  changeRequestReason  String? @db.Text
+  approvedAt           DateTime?
+  rejectedAt           DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([dealId, revision])
+  @@index([dealId])
+  @@map("deal_details")
+}
+
+// ---------------------------------------------------------------------------
+// Money movement
+// ---------------------------------------------------------------------------
+
+/**
+ * A payment request and the on-chain payment that satisfies it.
+ *
+ * `txHash` is globally unique per network: the same transaction can never be
+ * credited to two deals. `expectedCryptoAmount` is computed server-side from a
+ * stored PriceQuote — a client-supplied amount is never trusted.
+ */
+model Payment {
+  id     String @id @default(uuid())
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  status PaymentStatus @default(PENDING)
+
+  asset   String
+  network String
+
+  // USD side — the source of truth.
+  expectedUsd Decimal @db.Decimal(18, 2)
+
+  // Crypto side — derived from `quoteId`.
+  expectedCryptoAmount Decimal  @db.Decimal(38, 18)
+  receivedCryptoAmount Decimal? @db.Decimal(38, 18)
+  // Tolerance below the expected amount that still counts as paid.
+  toleranceCryptoAmount Decimal @default(0) @db.Decimal(38, 18)
+
+  quoteId String?    @unique
+  quote   PriceQuote? @relation(fields: [quoteId], references: [id])
+
+  depositAddress String
+  walletId       String?
+  wallet         Wallet? @relation(fields: [walletId], references: [id])
+
+  txHash        String?
+  fromAddress   String?
+  blockHeight   BigInt?
+  confirmations Int     @default(0)
+  requiredConfirmations Int
+
+  detectedAt  DateTime?
+  confirmedAt DateTime?
+  expiresAt   DateTime?
+
+  // Guards against a duplicated webhook/poll crediting the same event twice.
+  idempotencyKey String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([network, txHash], name: "unique_tx_per_network")
+  @@index([status])
+  @@index([depositAddress])
+  @@index([dealId])
+  @@map("payments")
+}
+
+/**
+ * A payout from escrow to the seller.
+ *
+ * Double-payout protection:
+ *   * `@@unique([dealId])` — at most ONE payout row can ever exist per deal.
+ *   * `idempotencyKey` is derived from the deal id, so a retry re-uses the row.
+ *   * `Deal.payoutLockedAt` is set in the same transaction that creates it.
+ * A crash after broadcast is recovered by reconciling `txHash`, never by
+ * creating a second payout.
+ */
+model Payout {
+  id     String @id @default(uuid())
+  dealId String @unique
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  status PayoutStatus @default(DRAFT)
+
+  asset   String
+  network String
+
+  // USD side — the seller receives the full deal value.
+  amountUsd Decimal @db.Decimal(18, 2)
+
+  // Crypto side.
+  cryptoAmount Decimal @db.Decimal(38, 18)
+  // Network fee, shown to the seller before authorisation. Never deducted
+  // silently: if it is charged to the seller it appears in the payout review.
+  networkFeeCrypto Decimal? @db.Decimal(38, 18)
+  networkFeeUsd    Decimal? @db.Decimal(18, 2)
+
+  quoteId String?     @unique
+  quote   PriceQuote? @relation(fields: [quoteId], references: [id])
+
+  destinationAddress String
+  // Address exactly as the seller typed it, before normalisation.
+  destinationAddressRaw String
+
+  txHash        String?
+  confirmations Int     @default(0)
+  requiredConfirmations Int
+
+  // Authorisation — a Discord click alone never authorises a payout.
+  authorizedByDiscordId String?
+  authorizedAt          DateTime?
+  rejectedByDiscordId   String?
+  rejectedAt            DateTime?
+  rejectionReason       String?
+
+  broadcastAt DateTime?
+  confirmedAt DateTime?
+
+  // Signer backend that produced the transaction (mock/manual/external).
+  signerBackend String?
+  failureReason String?
+
+  idempotencyKey String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([network, txHash], name: "unique_payout_tx_per_network")
+  @@index([status])
+  @@map("payouts")
+}
+
+/**
+ * The exact price used for a crypto amount, stored so any amount can be
+ * recomputed and audited later.
+ */
+model PriceQuote {
+  id     String @id @default(uuid())
+  dealId String?
+  deal   Deal?  @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  asset    String
+  network  String
+  provider String
+
+  // 1 unit of `asset` in USD at `quotedAt`.
+  usdPrice Decimal @db.Decimal(38, 18)
+  // The USD amount this quote was applied to.
+  usdAmount Decimal @db.Decimal(18, 2)
+  // usdAmount / usdPrice, rounded UP to the asset precision.
+  cryptoAmount Decimal @db.Decimal(38, 18)
+  assetDecimals Int
+
+  quotedAt  DateTime @default(now())
+  expiresAt DateTime
+
+  payment Payment?
+  payout  Payout?
+
+  createdAt DateTime @default(now())
+
+  @@index([asset, quotedAt])
+  @@index([dealId])
+  @@map("price_quotes")
+}
+
+/**
+ * Wallet addresses used by the service.
+ *
+ * NO PRIVATE KEY MATERIAL IS STORED HERE. `signerRef` is an opaque handle
+ * understood only by the configured external signer.
+ */
+model Wallet {
+  id      String     @id @default(uuid())
+  kind    WalletKind
+  asset   String
+  network String
+
+  address String
+  label   String?
+
+  // Opaque reference for the external signer / HSM. Never a key.
+  signerRef String?
+
+  active    Boolean  @default(true)
+  // A deposit address is only reused after the deal that used it settles.
+  inUse     Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+
+  @@unique([network, address])
+  @@index([kind, asset, network, active])
+  @@map("wallets")
+}
+
+// ---------------------------------------------------------------------------
+// Disputes & staff
+// ---------------------------------------------------------------------------
+
+model Dispute {
+  id     String @id @default(uuid())
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  status DisputeStatus @default(OPEN)
+
+  openedById        String
+  openedBy          User   @relation("DisputeOpener", fields: [openedById], references: [id])
+  openedByDiscordId String
+  reason            String @db.Text
+
+  claimedByDiscordId  String?
+  claimedAt           DateTime?
+  resolvedByDiscordId String?
+  resolvedAt          DateTime?
+  resolution          String? @db.Text
+
+  // The state the deal was in when the dispute froze it, so staff can restore.
+  frozenFromStatus DealStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dealId])
+  @@index([status])
+  @@map("disputes")
+}
+
+model SupportAction {
+  id     String @id @default(uuid())
+  dealId String?
+  deal   Deal?  @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  actorId        String?
+  actor          User?  @relation("SupportActor", fields: [actorId], references: [id])
+  actorDiscordId String
+
+  type  SupportActionType
+  note  String?           @db.Text
+  // Non-secret structured context (ids, amounts, before/after states).
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId])
+  @@index([actorDiscordId])
+  @@map("support_actions")
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+/**
+ * Append-only audit trail. Never contains secrets — see src/services/audit.ts,
+ * which strips anything key-like before writing.
+ */
+model AuditLog {
+  id     String @id @default(uuid())
+  dealId String?
+  deal   Deal?  @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  actorId        String?
+  actor          User?   @relation(fields: [actorId], references: [id])
+  actorDiscordId String?
+
+  action   String
+  metadata Json?
+
+  // Correlates every row written while handling one interaction.
+  correlationId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId, createdAt])
+  @@index([action, createdAt])
+  @@index([correlationId])
+  @@map("audit_logs")
+}
+
+/** Every accepted state machine transition, for forensics. */
+model StateTransition {
+  id     String @id @default(uuid())
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  fromStatus DealStatus
+  toStatus   DealStatus
+  reason     String?
+  actorDiscordId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId, createdAt])
+  @@map("state_transitions")
+}
+
+// ---------------------------------------------------------------------------
+// Runtime configuration (admin-editable, overrides .env defaults)
+// ---------------------------------------------------------------------------
+
+model GuildConfig {
+  id      String @id @default(uuid())
+  guildId String @unique
+
+  supportRoleId    String?
+  middlemanRoleId  String?
+  adminRoleId      String?
+  ticketCategoryId String?
+  archiveCategoryId String?
+  staffLogChannelId String?
+
+  feePercentage  Decimal @default(5) @db.Decimal(7, 4)
+  minDealAmountUsd Decimal @default(5) @db.Decimal(18, 2)
+  maxDealAmountUsd Decimal @default(100000) @db.Decimal(18, 2)
+
+  // Enabled asset symbols, e.g. ["BTC","ETH","USDT","USDC"].
+  enabledAssets String[] @default(["BTC", "ETH", "USDT", "USDC"])
+
+  ticketCloseDelaySeconds Int @default(300)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("guild_configs")
+}
+
+/**
+ * Per-guild ticket counter. Incremented inside the ticket-creation transaction
+ * so two concurrent clicks cannot receive the same number.
+ */
+model TicketCounter {
+  guildId String @id
+  value   Int    @default(0)
+
+  @@map("ticket_counters")
+}
+
+/**
+ * Generic idempotency ledger for operations that must run at most once
+ * (payout authorisation, payment crediting, broadcast).
+ */
+model IdempotencyRecord {
+  key       String   @id
+  scope     String
+  result    Json?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([scope])
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
