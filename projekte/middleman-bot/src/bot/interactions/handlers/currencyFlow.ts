@@ -14,6 +14,7 @@ import {
   buildCurrencySelect,
   buildPaymentBreakdownEmbed,
 } from '../../components/currencyPanels.js';
+import { createAndPostPaymentRequest } from './paymentFlow.js';
 import { assertFreshNonce, assertTargetMatches, loadDealForInteraction } from '../dealGuards.js';
 import { rotateRenderNonce } from '../renderNonce.js';
 import { safeReply } from '../respond.js';
@@ -156,6 +157,7 @@ async function handleCurrencySelect(
 
   if (bothChosen) {
     await postPaymentBreakdown(ctx, channel, updated);
+    await createAndPostPaymentRequest(ctx, channel, updated, interaction.user.id);
   }
 
   await safeReply(interaction, {

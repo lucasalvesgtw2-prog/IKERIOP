@@ -6,6 +6,9 @@ import { TicketService } from '../../services/ticketService.js';
 import { DealService } from '../../services/dealService.js';
 import { DealDetailsService } from '../../services/dealDetailsService.js';
 import { CurrencyService } from '../../services/currencyService.js';
+import { WalletService } from '../../services/walletService.js';
+import { PaymentService } from '../../services/paymentService.js';
+import { createPriceProvider, type PriceProvider } from '../../prices/index.js';
 import { newUuid } from '../../core/ids.js';
 
 /**
@@ -23,6 +26,9 @@ export interface BotContext {
   deals: DealService;
   dealDetails: DealDetailsService;
   currencies: CurrencyService;
+  wallets: WalletService;
+  payments: PaymentService;
+  prices: PriceProvider;
 }
 
 export function createBotContext(params: {
@@ -30,6 +36,9 @@ export function createBotContext(params: {
   prisma: PrismaClient;
   redis: Redis;
 }): BotContext {
+  const prices = createPriceProvider(params.redis);
+  const wallets = new WalletService(params.prisma);
+
   return {
     client: params.client,
     prisma: params.prisma,
@@ -39,6 +48,9 @@ export function createBotContext(params: {
     deals: new DealService(params.prisma),
     dealDetails: new DealDetailsService(params.prisma),
     currencies: new CurrencyService(params.prisma),
+    wallets,
+    payments: new PaymentService(params.prisma, prices, wallets),
+    prices,
   };
 }
 

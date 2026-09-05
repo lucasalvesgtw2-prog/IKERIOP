@@ -27,6 +27,7 @@ import {
   handleRequestChangesModal,
 } from './handlers/detailsFlow.js';
 import { handleBuyerCurrencySelect, handleSellerCurrencySelect } from './handlers/currencyFlow.js';
+import { handleCheckPayment, handleRequote } from './handlers/paymentFlow.js';
 import {
   handleCloseTicketCancel,
   handleCloseTicketConfirm,
@@ -62,6 +63,8 @@ const BUTTON_HANDLERS: Record<string, ButtonHandler> = {
   [`${DEAL_DOMAIN}:details`]: handleOpenDetailsModal,
   [`${DEAL_DOMAIN}:approve`]: handleApproveDeal,
   [`${DEAL_DOMAIN}:changes`]: handleRequestChangesModal,
+  [`${DEAL_DOMAIN}:paycheck`]: handleCheckPayment,
+  [`${DEAL_DOMAIN}:requote`]: handleRequote,
 };
 
 type UserSelectHandler = (

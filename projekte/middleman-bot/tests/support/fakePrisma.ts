@@ -25,6 +25,12 @@ export interface FakePrismaState {
   stateTransitions: FakeRow[];
   dealParticipants: FakeRow[];
   dealDetails: FakeRow[];
+  payments: FakeRow[];
+  priceQuotes: FakeRow[];
+  wallets: FakeRow[];
+  payouts: FakeRow[];
+  disputes: FakeRow[];
+  supportActions: FakeRow[];
 }
 
 let sequence = 0;
@@ -46,6 +52,12 @@ export function createFakePrisma(seed: Partial<FakePrismaState> = {}): FakePrism
     stateTransitions: seed.stateTransitions ?? [],
     dealParticipants: seed.dealParticipants ?? [],
     dealDetails: seed.dealDetails ?? [],
+    payments: seed.payments ?? [],
+    priceQuotes: seed.priceQuotes ?? [],
+    wallets: seed.wallets ?? [],
+    payouts: seed.payouts ?? [],
+    disputes: seed.disputes ?? [],
+    supportActions: seed.supportActions ?? [],
   };
 
   const client: any = {
@@ -206,6 +218,121 @@ export function createFakePrisma(seed: Partial<FakePrismaState> = {}): FakePrism
       ),
     },
 
+    priceQuote: {
+      create: vi.fn(async ({ data }: any) => {
+        const created: FakeRow = { id: nextId('quote'), ...data };
+        state.priceQuotes.push(created);
+        return { ...created };
+      }),
+      findUnique: vi.fn(async ({ where }: any) => {
+        const row = state.priceQuotes.find((q) => q.id === where.id);
+        return row ? { ...row } : null;
+      }),
+    },
+
+    payment: {
+      create: vi.fn(async ({ data }: any) => {
+        // Mirrors @@unique([idempotencyKey]) and @@unique([network, txHash]).
+        if (state.payments.some((p) => p.idempotencyKey === data.idempotencyKey)) {
+          const error: any = new Error('Unique constraint failed on payments.idempotencyKey');
+          error.code = 'P2002';
+          throw error;
+        }
+        if (
+          data.txHash &&
+          state.payments.some((p) => p.network === data.network && p.txHash === data.txHash)
+        ) {
+          const error: any = new Error('Unique constraint failed on payments.network_txHash');
+          error.code = 'P2002';
+          throw error;
+        }
+        const created: FakeRow = { confirmations: 0, txHash: null, ...data, id: nextId('payment') };
+        state.payments.push(created);
+        return { ...created };
+      }),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.payments.find((p) => p.id === where.id);
+        if (!row) throw new Error('payment not found');
+        applyUpdate(row, data);
+        return { ...row };
+      }),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        const rows = state.payments.filter(
+          (p) =>
+            (where.id === undefined || p.id === where.id) &&
+            (where.status === undefined || p.status === where.status) &&
+            (where.dealId === undefined || p.dealId === where.dealId),
+        );
+        for (const row of rows) applyUpdate(row, data);
+        return { count: rows.length };
+      }),
+      findFirst: vi.fn(async ({ where, orderBy, include }: any) => {
+        let rows = state.payments.filter((p) => {
+          if (where.dealId !== undefined && p.dealId !== where.dealId) return false;
+          if (where.status?.notIn && where.status.notIn.includes(p.status)) return false;
+          if (typeof where.status === 'string' && p.status !== where.status) return false;
+          return true;
+        });
+        if (orderBy?.createdAt === 'desc') rows = [...rows].reverse();
+        const row = rows[0];
+        if (!row) return null;
+        const result: FakeRow = { ...row };
+        if (include?.quote) {
+          result.quote = state.priceQuotes.find((q) => q.id === row.quoteId) ?? null;
+        }
+        return result;
+      }),
+      findUnique: vi.fn(async ({ where }: any) => {
+        const row = state.payments.find((p) =>
+          where.id !== undefined ? p.id === where.id : p.idempotencyKey === where.idempotencyKey,
+        );
+        return row ? { ...row } : null;
+      }),
+      findMany: vi.fn(async ({ where }: any) =>
+        state.payments
+          .filter((p) => {
+            if (where?.status?.in && !where.status.in.includes(p.status)) return false;
+            if (where?.dealId !== undefined && p.dealId !== where.dealId) return false;
+            return true;
+          })
+          .map((p) => ({ ...p })),
+      ),
+    },
+
+    wallet: {
+      create: vi.fn(async ({ data }: any) => {
+        const created: FakeRow = { active: true, inUse: false, id: nextId('wallet'), ...data };
+        state.wallets.push(created);
+        return { ...created };
+      }),
+      findFirst: vi.fn(async ({ where }: any) => {
+        const row = state.wallets.find((w) =>
+          Object.entries(where).every(([key, value]) => w[key] === value),
+        );
+        return row ? { ...row } : null;
+      }),
+      findMany: vi.fn(async ({ where }: any) =>
+        state.wallets
+          .filter((w) =>
+            where ? Object.entries(where).every(([key, value]) => w[key] === value) : true,
+          )
+          .map((w) => ({ ...w })),
+      ),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.wallets.find((w) => w.id === where.id);
+        if (!row) throw new Error('wallet not found');
+        applyUpdate(row, data);
+        return { ...row };
+      }),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        const rows = state.wallets.filter((w) =>
+          Object.entries(where).every(([key, value]) => w[key] === value),
+        );
+        for (const row of rows) applyUpdate(row, data);
+        return { count: rows.length };
+      }),
+    },
+
     ticketCounter: {
       upsert: vi.fn(async ({ where, create }: any) => {
         const current = state.counters.get(where.guildId);
@@ -237,6 +364,18 @@ export function createFakePrisma(seed: Partial<FakePrismaState> = {}): FakePrism
   };
 
   return client;
+}
+
+/** Applies a Prisma-style update payload, including `{ increment }`. */
+function applyUpdate(row: FakeRow, data: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    if (value && typeof value === 'object' && 'increment' in (value as object)) {
+      row[key] = ((row[key] as number) ?? 0) + (value as { increment: number }).increment;
+    } else {
+      row[key] = value;
+    }
+  }
 }
 
 function stripUndefined(data: Record<string, unknown>): Record<string, unknown> {

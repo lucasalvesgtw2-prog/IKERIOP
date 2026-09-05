@@ -13,7 +13,7 @@ are released to the seller.
 
 ## Status
 
-Phases 1–5 of 17 are complete. The bot builds, starts, and carries a deal from
+Phases 1–6 of 17 are complete. The bot builds, starts, and carries a deal from
 opening a ticket through to the buyer's approval of the agreed USD price;
 216 tests pass.
 
@@ -24,8 +24,8 @@ opening a ticket through to the buyer's approval of the agreed USD price;
 | 3     | Buyer/Seller role system                                                     | ✅ done            |
 | 4     | Deal details + buyer approval                                                | ✅ done            |
 | 5     | Crypto selection + USD calculation                                           | ✅ done            |
-| 6     | Price provider + payment request                                             | next               |
-| 7     | Blockchain payment monitoring                                                | planned            |
+| 6     | Price provider + payment request                                             | ✅ done            |
+| 7     | Blockchain payment monitoring                                                | next               |
 | 8     | Deal completion confirmation                                                 | planned            |
 | 9     | Payout address + validation                                                  | planned            |
 | 10    | Secure payout system                                                         | planned            |
