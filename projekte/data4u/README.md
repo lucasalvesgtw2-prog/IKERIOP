@@ -28,7 +28,7 @@ aus Navigation, Scroll-Reveal, Kontakt-Dock und Formular.
 ```
 app/            Layout (Fonts, SEO, Organization-Schema), Seiten, sitemap, robots
 components/     Ein Abschnitt bzw. ein Baustein je Datei
-components/ui/  Button, Badge, SectionHeader, Logo, ScanFrame, Reveal
+components/ui/  Button, Figure, SectionHeader, Logo, ScanFrame, Reveal
 components/mockups/  Alle Produkt- und Gerätedarstellungen
 lib/data4u.ts   Geschäftsdaten — die einzige Quelle
 lib/pages.ts    Inhalte der Produkt- und Equipmentseiten
@@ -61,54 +61,56 @@ Eintrag in `lib/data4u.ts`, einen in `lib/pages.ts` und eine dreizeilige
 
 ## Gestaltung
 
-Leitbild ist **Präzision**: Data4U misst, prüft und lässt durch. Daraus
-kommen die drei wiederkehrenden Elemente:
+Die Seite ist als **technisches Dokument** gebaut, nicht als Werbefläche.
+Tiefe entsteht über Linien und Flächenwechsel, nicht über Weichzeichner;
+Farbe trägt keine Stimmung, sondern eine Bedeutung.
+
+Vier wiederkehrende Bausteine:
 
 1. **Haarlinien-Raster** (`.grid-rules`) — zwei 1px-Linien auf Höhe der
    Container-Kanten, die durch jede Sektion laufen.
-2. **Erkennungsrahmen** (`ScanCorners`) — die vier Ecken einer
-   Gesichtserkennung, als Rahmen um Visuals und als Hover-Zustand auf den
-   Lösungskarten.
-3. **Technische Mikro-Labels** in JetBrains Mono über jeder Sektion.
+2. **Gerahmte Abbildung** (`Figure`) — Rahmen, optionale nummerierte Legende,
+   Bildunterschrift in Mono. Trägt Hero, Aplicativo und die Fit-Module. Die
+   Bildunterschrift ist Pflicht: sie benennt, was zu sehen ist, und markiert
+   Mockups sichtbar als Darstellung.
+3. **Spec-Listen** — Module und Merkmale stehen als Tabellenzeilen mit
+   Haarlinien, nicht als Häkchenlisten.
+4. **Millimeterpapier** — die Gerätezeichnungen stehen auf einem Raster aus
+   10px-Feinlinien und 50px-Hauptlinien, so wie technische Zeichnungen
+   entstehen.
+
+Bewusst **nicht** verwendet, weil es jede Vorlage benutzt: Leuchtkegel hinter
+Überschriften, Punktraster als Hintergrund, schwebende Statusplaketten um
+Geräte, farbige Schlagschatten unter Schaltflächen, Karten, die sich beim
+Überfahren anheben, große weiche Radien.
+
+| Rolle | Wert | Prüfung |
+|---|---|---|
+| Primär | `#1550c8` | 6,97:1 in beide Richtungen |
+| Primär dunkel | `#12439f` | 9,02:1 auf Weiß |
+| Grund dunkel | `#0a0f1a` | flach, ohne Verlauf |
+| Fläche | `#ffffff` / `#f5f7fa` | |
+| Linie | `#e2e6ed` | das eigentliche Gestaltungsmittel |
+| Signal (nur Biometrie-Abbildungen) | `#1aa5b8` | |
+| Erfolg | `#0a7a4e` | 5,38:1 auf Weiß |
+
+Das Blau ist bewusst tiefer und weniger gesättigt als das helle Standardblau,
+das gerade jede Oberfläche trägt — und hält als Fläche unter weißem Text
+dieselbe Kontrastschwelle wie als Text auf Weiß.
+
+Radien laufen von 2 bis 10px. Große weiche Ecken lassen technische Inhalte
+wie Werbung aussehen; knappe lassen sie wie Gerät aussehen.
+
+Schriften: **IBM Plex Sans** für Überschriften und Fließtext, **IBM Plex
+Mono** für Beschriftungen, Legenden und Zahlen. Eine Familie, die für ein
+Technologieunternehmen gezeichnet wurde. Beide werden über `next/font`
+mitgeliefert und selbst ausgeliefert — keine Anfrage an Google beim
+Seitenaufruf, kein Textflackern. Das `latin-ext`-Subset ist zwingend: ohne
+es fehlen die Diakritika in „gestão", „condomínios" und „segurança".
 
 Helle und dunkle Akte wechseln sich ab. Die Klasse `.act-dark` schaltet alle
 Textrollen um — dieselbe Komponente läuft dadurch unverändert in hellen und
 dunklen Sektionen.
-
-| Rolle | Wert |
-|---|---|
-| Primär | `#2f66f5` Markenblau |
-| Primär dunkel | `#1a4ae0` |
-| Grund dunkel | `#060a14` Marine |
-| Fläche | `#ffffff` / `#f6f8fc` |
-| Linie | `#e4e9f2` |
-| Signal (nur Biometrie-Visuals) | `#21c7dd` |
-| Erfolg | `#0f9d63` |
-
-Schriften: **Inter** für die gesamte Oberfläche, **JetBrains Mono** nur für
-die Mikro-Labels. Beide werden über `next/font` mitgeliefert und selbst
-ausgeliefert — keine Anfrage an Google beim Seitenaufruf, kein Textflackern.
-
-Alle Größen und Abstände kommen aus dem Design-System in `app/globals.css`
-(CSS-Variablen für Farben, Radien, Schatten, Bewegung; `clamp()`-Skala für
-Typografie und Sektionsabstände).
-
-## Visuals
-
-Es lagen keine freigegebenen Produktfotos oder Screenshots von Data4U vor.
-Statt Stockfotos zu verwenden, ist alles gezeichnet:
-
-- **Gesichtsnetz** (`FaceMesh`) — deterministisch erzeugte Punktwolke mit
-  Landmarken und Erkennungsrahmen. Kein Foto, keine reale Person.
-- **Zugangsterminal** (`AccessTerminal`) — Gerät als Interface nachgebaut.
-- **Interface-Mockups** (`ProductMockup`) — echte Modulnamen, abstrakte
-  Daten. Jedes Fenster trägt sichtbar den Hinweis „Representação".
-  Kennzahlenfelder bleiben bewusst leer.
-- **Geräte** (`HardwareArt`) — technische Strichzeichnungen von Catraca,
-  Leser, Controladora und Stempeluhr.
-
-Jede Zeichnung sitzt in einer Kachel mit festem Seitenverhältnis. Ein später
-geliefertes Foto ersetzt sie, ohne dass das Layout springt.
 
 ## Inhaltsregeln
 

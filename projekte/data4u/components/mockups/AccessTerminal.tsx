@@ -46,9 +46,6 @@ export function AccessTerminal({ className }: { className?: string }) {
           <Fingerprint size={18} strokeWidth={1.6} />
         </div>
       </div>
-
-      {/* Wandschatten */}
-      <div className="terminal-shadow" aria-hidden />
     </div>
   );
 }

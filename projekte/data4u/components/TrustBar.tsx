@@ -1,5 +1,4 @@
 import { Building2, Dumbbell, GraduationCap, Home, Landmark } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
 import { revealDelay } from '@/lib/motion';
 
 const icons = {
@@ -21,7 +20,7 @@ const items = [
 export function TrustBar() {
   return (
     <section className="trustbar" aria-label="Segmentos atendidos">
-      <div className="container-d4u grid-rules">
+      <div className="container-d4u">
         <p className="trustbar-claim reveal">
           Há décadas desenvolvendo tecnologia para gestão e controle de acesso.
         </p>
@@ -30,10 +29,11 @@ export function TrustBar() {
           {items.map((item, i) => {
             const Icon = icons[item.icon];
             return (
-              <li key={item.label} className="reveal" style={revealDelay(60 + i * 60)}>
-                <Badge size="md" icon={<Icon size={17} strokeWidth={1.8} aria-hidden />}>
+              <li key={item.label} className="reveal" style={revealDelay(40 + i * 50)}>
+                <span className="trustbar-item">
+                  <Icon size={16} strokeWidth={1.7} aria-hidden />
                   {item.label}
-                </Badge>
+                </span>
               </li>
             );
           })}

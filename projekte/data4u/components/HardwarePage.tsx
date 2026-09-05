@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { RevealProvider } from '@/components/ui/Reveal';
 import { PageHero } from '@/components/PageHero';
@@ -63,10 +63,7 @@ export function HardwarePage({ slug }: { slug: string }) {
               />
               <ul className="feature-list reveal mt-8" style={revealDelay(80)}>
                 {item.features.map((f) => (
-                  <li key={f}>
-                    <Check size={15} strokeWidth={2.6} aria-hidden />
-                    {f}
-                  </li>
+                  <li key={f}>{f}</li>
                 ))}
               </ul>
             </div>
@@ -113,7 +110,7 @@ export function HardwarePage({ slug }: { slug: string }) {
           <div className="solutions-grid">
             {solutions.map((s, i) => (
               <div key={s.slug} className="reveal" style={revealDelay(i * 80)}>
-                <SolutionCard solution={s} />
+                <SolutionCard solution={s} index={i} />
               </div>
             ))}
           </div>

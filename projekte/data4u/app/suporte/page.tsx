@@ -5,6 +5,8 @@ import { RevealProvider } from '@/components/ui/Reveal';
 import { PageHero } from '@/components/PageHero';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { CTASection } from '@/components/CTASection';
+import { Faq, FaqJsonLd } from '@/components/Faq';
+import { supportFaq } from '@/lib/pages';
 import { contact, supportChannels } from '@/lib/data4u';
 import { revealDelay } from '@/lib/motion';
 
@@ -25,6 +27,7 @@ export default function Page() {
   return (
     <>
       <RevealProvider />
+      <FaqJsonLd items={supportFaq} />
 
       <PageHero
         eyebrow="Suporte"
@@ -79,6 +82,11 @@ export default function Page() {
           </p>
         </div>
       </section>
+
+      <Faq
+        items={supportFaq}
+        lead="As dúvidas mais comuns sobre atendimento e prazos."
+      />
 
       <CTASection
         title="Precisa de ajuda com um sistema Data4U?"

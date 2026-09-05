@@ -23,12 +23,15 @@ export function ProductPage({
   secondaryTitle,
   secondaryText,
   secondaryEyebrow,
+  extraSection,
 }: {
   slug: string;
   secondaryVisual: ReactNode;
   secondaryTitle: string;
   secondaryText: string;
   secondaryEyebrow: string;
+  /** Optionaler zusätzlicher Block nach dem Funktionsraster. */
+  extraSection?: ReactNode;
 }) {
   const product = solutionBySlug(slug);
   const content = productContent[slug];
@@ -66,6 +69,8 @@ export function ProductPage({
           items={content.capabilities}
         />
       </div>
+
+      {extraSection}
 
       <ProductFeature
         eyebrow={secondaryEyebrow}

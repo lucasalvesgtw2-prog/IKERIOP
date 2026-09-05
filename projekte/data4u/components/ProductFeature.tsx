@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Check } from 'lucide-react';
 import { revealDelay } from '@/lib/motion';
 
 /**
@@ -52,10 +51,7 @@ export function ProductFeature({
             {bullets?.length ? (
               <ul className="feature-list reveal" style={revealDelay(180)}>
                 {bullets.map((b) => (
-                  <li key={b}>
-                    <Check size={15} strokeWidth={2.6} aria-hidden />
-                    {b}
-                  </li>
+                  <li key={b}>{b}</li>
                 ))}
               </ul>
             ) : null}

@@ -16,7 +16,7 @@ export function SolutionsGrid() {
         <div className="solutions-grid">
           {solutions.map((s, i) => (
             <div key={s.slug} className="reveal" style={revealDelay(i * 90)}>
-              <SolutionCard solution={s} />
+              <SolutionCard solution={s} index={i} />
             </div>
           ))}
         </div>

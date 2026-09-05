@@ -25,8 +25,8 @@ function Frame({ children, label }: { children: React.ReactNode; label: string }
     >
       <defs>
         <linearGradient id="hw-face" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--color-brand-500)" stopOpacity="0.16" />
-          <stop offset="100%" stopColor="var(--color-brand-500)" stopOpacity="0.03" />
+          <stop offset="0%" stopColor="var(--color-surface)" stopOpacity="0.88" />
+          <stop offset="100%" stopColor="var(--color-surface)" stopOpacity="0.7" />
         </linearGradient>
       </defs>
       {/* Bodenlinie — gibt allen vier Zeichnungen dieselbe Standfläche. */}
@@ -50,7 +50,7 @@ export function TurnstileArt({ className }: Props) {
   return (
     <div className={className}>
       <Frame label="Desenho técnico de uma catraca de controle de acesso">
-        <g stroke="currentColor" strokeWidth="1.6" strokeOpacity="0.55">
+        <g stroke="currentColor" strokeWidth="1.6" strokeOpacity="0.65">
           {/* Säule */}
           <path d="M104 176V96a12 12 0 0 1 12-12h28a12 12 0 0 1 12 12v80" fill="url(#hw-face)" />
           {/* Kopf */}
@@ -95,7 +95,7 @@ export function ReaderArt({ className }: Props) {
           fill="url(#hw-face)"
           stroke="currentColor"
           strokeWidth="1.6"
-          strokeOpacity="0.55"
+          strokeOpacity="0.65"
         />
         {/* Statusleiste */}
         <rect x="104" y="50" width="52" height="6" rx="3" fill="currentColor" fillOpacity="0.16" />
@@ -144,7 +144,7 @@ export function ControllerArt({ className }: Props) {
           fill="url(#hw-face)"
           stroke="currentColor"
           strokeWidth="1.6"
-          strokeOpacity="0.55"
+          strokeOpacity="0.65"
         />
         {/* Klemmleiste oben */}
         <g stroke="currentColor" strokeWidth="1.3" strokeOpacity="0.35">
@@ -174,7 +174,7 @@ export function ControllerArt({ className }: Props) {
         {/* Beschriftungsfeld */}
         <rect x="162" y="106" width="30" height="22" rx="4" fill="currentColor" fillOpacity="0.10" />
         {/* Leitungen zu Tür, Schranke, Catraca */}
-        <g stroke="var(--color-brand-400)" strokeWidth="1.4" strokeOpacity="0.55" strokeDasharray="4 4">
+        <g stroke="var(--color-brand-400)" strokeWidth="1.4" strokeOpacity="0.65" strokeDasharray="4 4">
           <path d="M56 98H30v58" />
           <path d="M204 98h26v58" />
         </g>
@@ -201,7 +201,7 @@ export function ClockArt({ className }: Props) {
           fill="url(#hw-face)"
           stroke="currentColor"
           strokeWidth="1.6"
-          strokeOpacity="0.55"
+          strokeOpacity="0.65"
         />
         {/* Display */}
         <rect

@@ -1,25 +1,31 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { ContactDock } from '@/components/ContactDock';
 import { addressLines, company, contact } from '@/lib/data4u';
 import './globals.css';
 
-/* Beide Familien werden mitgeliefert und selbst ausgeliefert: keine Anfrage
-   an Google beim Seitenaufruf und kein Textflackern beim Laden. Inter trägt
-   die gesamte Oberfläche, JetBrains Mono nur die technischen Mikro-Labels. */
-const inter = Inter({
-  subsets: ['latin'],
+/* IBM Plex — gezeichnet für ein Technologieunternehmen, mit einem eigenen
+   Charakter in a, g und den Endungen. Sans trägt Überschriften und
+   Fließtext, Mono alle Beschriftungen und Zahlen.
+
+   Beide Familien werden mitgeliefert und selbst ausgeliefert: keine Anfrage
+   an Google beim Seitenaufruf und kein Textflackern beim Laden. Das
+   latin-ext-Subset ist für Portugiesisch nötig — ohne es fehlen die
+   Diakritika in „gestão", „condomínios" und „segurança". */
+const plex = IBM_Plex_Sans({
+  weight: ['400', '500', '600'],
+  subsets: ['latin', 'latin-ext'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-plex',
 });
 
-const mono = JetBrains_Mono({
+const plexMono = IBM_Plex_Mono({
   weight: ['400', '500'],
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   display: 'swap',
-  variable: '--font-mono-ui',
+  variable: '--font-plex-mono',
 });
 
 const description =
@@ -104,7 +110,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${mono.variable} no-js`}>
+    <html lang="pt-BR" className={`${plex.variable} ${plexMono.variable} no-js`}>
       <head>
         {/* Entfernt die no-js-Klasse, bevor der erste Frame gezeichnet wird:
             ohne JavaScript bleiben alle Reveal-Elemente sichtbar. */}

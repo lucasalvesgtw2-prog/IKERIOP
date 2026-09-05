@@ -434,3 +434,30 @@ export const hardwareFaq: Record<string, FaqItem[]> = {
     },
   ],
 };
+
+/* ---------------------------------------------------------------------
+   FAQ der Supportseite — nur aus den belegten Supportwegen abgeleitet
+--------------------------------------------------------------------- */
+
+export const supportFaq: FaqItem[] = [
+  {
+    q: 'Como abro um chamado de suporte?',
+    a: 'Pelo telefone ou pelo e-mail da Data4U. O atendimento é organizado por sistema de chamados: cada solicitação recebe um registro e pode ser acompanhada até a solução.',
+  },
+  {
+    q: 'O suporte consegue acessar o sistema remotamente?',
+    a: 'Sim. O atendimento remoto é feito com o TeamViewer instalado no computador do cliente.',
+  },
+  {
+    q: 'Vocês fazem visita técnica?',
+    a: 'Visitas técnicas são realizadas em Brasília e entorno. As demais cidades são atendidas por telefone e acesso remoto.',
+  },
+  {
+    q: 'O suporte atende também o equipamento?',
+    a: 'A Data4U trabalha com software e equipamento — catracas, leitores biométricos, controladoras e relógios de ponto —, de modo que o atendimento cobre a solução instalada como um todo.',
+  },
+  {
+    q: 'Sou cliente novo. Por onde começo?',
+    a: 'Use a página Fale conosco descrevendo a sua operação. Para dúvidas sobre um sistema já instalado, o caminho mais rápido é o telefone.',
+  },
+];

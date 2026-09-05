@@ -18,9 +18,6 @@ export function CTASection({
 }) {
   return (
     <section className="cta act-dark grid-rules" aria-labelledby="cta-title">
-      <div className="glow-brand cta-glow" aria-hidden />
-      <div className="bg-dots cta-dots" aria-hidden />
-
       <div className="container-d4u relative">
         <div className="cta-inner">
           <h2 id="cta-title" className="t-h1 reveal">

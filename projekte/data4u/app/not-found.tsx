@@ -6,9 +6,6 @@ import { hardware, solutions } from '@/lib/data4u';
 export default function NotFound() {
   return (
     <section className="page-hero act-dark" style={{ minHeight: '72vh' }}>
-      <div className="page-hero-glow" aria-hidden />
-      <div className="bg-dots page-hero-dots" aria-hidden />
-
       <div className="container-d4u grid-rules relative">
         <p className="eyebrow">Erro 404</p>
         <h1 className="t-h1 mt-4 max-w-2xl">Esta página não foi encontrada.</h1>

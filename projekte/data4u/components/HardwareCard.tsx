@@ -8,7 +8,7 @@ export function HardwareCard({ item }: { item: Hardware }) {
 
   return (
     <article className="card card-hover hw-card">
-      <div className="hw-art zoom-soft">
+      <div className="hw-art">
         <Art className="hw-art-inner" />
       </div>
 

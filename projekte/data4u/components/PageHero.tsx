@@ -26,9 +26,6 @@ export function PageHero({
 }) {
   return (
     <section className="page-hero act-dark" aria-labelledby="page-title">
-      <div className="page-hero-glow" aria-hidden />
-      <div className="bg-dots page-hero-dots" aria-hidden />
-
       <div className="container-d4u grid-rules relative">
         {crumbs?.length ? (
           <nav aria-label="Trilha de navegação" className="crumbs reveal">
