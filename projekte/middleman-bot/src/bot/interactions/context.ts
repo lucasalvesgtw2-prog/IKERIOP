@@ -8,6 +8,11 @@ import { DealDetailsService } from '../../services/dealDetailsService.js';
 import { CurrencyService } from '../../services/currencyService.js';
 import { WalletService } from '../../services/walletService.js';
 import { PaymentService } from '../../services/paymentService.js';
+import { PaymentMonitorService } from '../../services/paymentMonitorService.js';
+import { CompletionService } from '../../services/completionService.js';
+import { PayoutService } from '../../services/payoutService.js';
+import { createSigner, type Signer } from '../../wallets/index.js';
+import { ChainRegistry } from '../../chains/index.js';
 import { createPriceProvider, type PriceProvider } from '../../prices/index.js';
 import { newUuid } from '../../core/ids.js';
 
@@ -28,6 +33,11 @@ export interface BotContext {
   currencies: CurrencyService;
   wallets: WalletService;
   payments: PaymentService;
+  paymentMonitor: PaymentMonitorService;
+  completion: CompletionService;
+  payouts: PayoutService;
+  chains: ChainRegistry;
+  signer: Signer;
   prices: PriceProvider;
 }
 
@@ -38,6 +48,7 @@ export function createBotContext(params: {
 }): BotContext {
   const prices = createPriceProvider(params.redis);
   const wallets = new WalletService(params.prisma);
+  const signer = createSigner(params.redis);
 
   return {
     client: params.client,
@@ -50,6 +61,11 @@ export function createBotContext(params: {
     currencies: new CurrencyService(params.prisma),
     wallets,
     payments: new PaymentService(params.prisma, prices, wallets),
+    paymentMonitor: new PaymentMonitorService(params.prisma),
+    completion: new CompletionService(params.prisma),
+    payouts: new PayoutService(params.prisma, prices, signer),
+    chains: new ChainRegistry(params.redis),
+    signer,
     prices,
   };
 }

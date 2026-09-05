@@ -7,6 +7,9 @@ import { createDiscordClient, loginDiscordClient } from './bot/client.js';
 import { createBotContext } from './bot/interactions/context.js';
 import { registerInteractionRouter } from './bot/interactions/router.js';
 import { registerCommands } from './bot/registerCommands.js';
+import { ChainRegistry } from './chains/index.js';
+import { PaymentMonitorWorker } from './workers/paymentMonitor.js';
+import { PayoutMonitorWorker } from './workers/payoutMonitor.js';
 
 /**
  * Application entrypoint.
@@ -52,10 +55,24 @@ async function main(): Promise<void> {
   // Registered after login so a bad token fails on login rather than here.
   await registerCommands();
 
-  registerShutdownHandlers(client);
+  const chains = new ChainRegistry(getRedis());
+
+  // Reconciliation runs BEFORE any worker starts: a payout that may already be
+  // in flight has to be resolved against the signer before new work begins.
+  const payoutMonitor = new PayoutMonitorWorker(bot, client, chains);
+  await payoutMonitor.reconcileOnBoot();
+  payoutMonitor.start();
+
+  const paymentMonitor = new PaymentMonitorWorker(bot, client, chains);
+  paymentMonitor.start();
+
+  registerShutdownHandlers(client, () => {
+    paymentMonitor.stop();
+    payoutMonitor.stop();
+  });
 }
 
-function registerShutdownHandlers(client: Client): void {
+function registerShutdownHandlers(client: Client, stopWorkers: () => void): void {
   const log = createLogger('shutdown');
   let shuttingDown = false;
 
@@ -64,6 +81,9 @@ function registerShutdownHandlers(client: Client): void {
     shuttingDown = true;
 
     log.info({ signal }, 'shutting down');
+
+    // Workers stop first so no new chain work starts while connections close.
+    stopWorkers();
 
     // Destroying the gateway first stops new interactions from arriving while
     // in-flight database work finishes.
