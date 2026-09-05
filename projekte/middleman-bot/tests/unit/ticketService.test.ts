@@ -30,7 +30,7 @@ describe('TicketService.reserve', () => {
 
   beforeEach(() => {
     prisma = createFakePrisma();
-    service = new TicketService(prisma);
+    service = new TicketService(prisma as never);
   });
 
   it('numbers the first ticket 0001 and matches the deal id to it', async () => {
@@ -118,7 +118,7 @@ describe('TicketService.reserve', () => {
 describe('TicketService.attachChannel', () => {
   it('records the channel and writes an audit entry', async () => {
     const prisma = createFakePrisma();
-    const service = new TicketService(prisma);
+    const service = new TicketService(prisma as never);
     const reservation = await service.reserve(reserveInput());
 
     await service.attachChannel(reservation, 'channel-123', 'user-1');
@@ -135,7 +135,7 @@ describe('TicketService.attachChannel', () => {
 describe('TicketService.abandon', () => {
   it('marks the reservation failed instead of leaving it looking open', async () => {
     const prisma = createFakePrisma();
-    const service = new TicketService(prisma);
+    const service = new TicketService(prisma as never);
     const reservation = await service.reserve(reserveInput());
 
     await service.abandon(reservation, 'Discord refused');
@@ -146,7 +146,7 @@ describe('TicketService.abandon', () => {
 
   it('does not reuse the abandoned number', async () => {
     const prisma = createFakePrisma();
-    const service = new TicketService(prisma);
+    const service = new TicketService(prisma as never);
 
     const first = await service.reserve(reserveInput());
     await service.abandon(first, 'Discord refused');
@@ -157,7 +157,7 @@ describe('TicketService.abandon', () => {
 });
 
 describe('TicketService.assertClosable', () => {
-  const service = new TicketService(createFakePrisma());
+  const service = new TicketService(createFakePrisma() as never);
 
   it('lets a participant close a deal that holds no funds', () => {
     for (const status of ['CREATED', 'ROLES_ASSIGNED', 'AWAITING_PAYMENT'] as const) {
@@ -188,7 +188,7 @@ describe('TicketService.close', () => {
 
   beforeEach(async () => {
     prisma = createFakePrisma();
-    service = new TicketService(prisma);
+    service = new TicketService(prisma as never);
   });
 
   it('cancels a live deal and closes its ticket', async () => {
@@ -304,7 +304,7 @@ describe('TicketService.close', () => {
 
 describe('TicketService.requireByChannelId', () => {
   it('throws when the channel is not a ticket', async () => {
-    const service = new TicketService(createFakePrisma());
+    const service = new TicketService(createFakePrisma() as never);
     await expect(service.requireByChannelId('random-channel')).rejects.toBeInstanceOf(
       NotFoundError,
     );

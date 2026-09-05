@@ -191,6 +191,10 @@ model Deal {
 
   // --- participants (denormalised Discord ids for fast interaction guards) ---
   creatorDiscordId String
+  // The second participant, recorded when they are added and before any role
+  // is decided. Roles are a separate, explicit step, so nobody is silently
+  // cast as the buyer.
+  partnerDiscordId String?
   buyerDiscordId   String?
   sellerDiscordId  String?
 
@@ -264,6 +268,7 @@ model Deal {
   @@index([guildId, status])
   @@index([buyerDiscordId])
   @@index([sellerDiscordId])
+  @@index([partnerDiscordId])
   @@index([expiresAt])
   @@map("deals")
 }

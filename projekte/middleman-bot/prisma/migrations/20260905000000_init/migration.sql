@@ -65,6 +65,7 @@ CREATE TABLE "deals" (
     "ticketId" TEXT NOT NULL,
     "guildId" TEXT NOT NULL,
     "creatorDiscordId" TEXT NOT NULL,
+    "partnerDiscordId" TEXT,
     "buyerDiscordId" TEXT,
     "sellerDiscordId" TEXT,
     "item" TEXT,
@@ -368,6 +369,9 @@ CREATE INDEX "deals_buyerDiscordId_idx" ON "deals"("buyerDiscordId");
 
 -- CreateIndex
 CREATE INDEX "deals_sellerDiscordId_idx" ON "deals"("sellerDiscordId");
+
+-- CreateIndex
+CREATE INDEX "deals_partnerDiscordId_idx" ON "deals"("partnerDiscordId");
 
 -- CreateIndex
 CREATE INDEX "deals_expiresAt_idx" ON "deals"("expiresAt");

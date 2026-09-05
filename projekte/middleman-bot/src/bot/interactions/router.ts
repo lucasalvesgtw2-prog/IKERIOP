@@ -1,8 +1,22 @@
-import { MessageFlags, type ButtonInteraction, type Client, type Interaction } from 'discord.js';
+import {
+  MessageFlags,
+  type ButtonInteraction,
+  type Client,
+  type Interaction,
+  type StringSelectMenuInteraction,
+  type UserSelectMenuInteraction,
+} from 'discord.js';
 import { ForbiddenError, ValidationError } from '../../core/errors.js';
 import { createLogger } from '../../core/logger.js';
 import { commands } from '../commands/index.js';
 import { TICKET_DOMAIN } from '../components/ticketPanels.js';
+import { DEAL_DOMAIN } from '../components/dealPanels.js';
+import {
+  handleAddPartnerButton,
+  handlePartnerSelect,
+  handleRoleSelect,
+  handleSwapRoles,
+} from './handlers/roleFlow.js';
 import {
   handleCloseTicketCancel,
   handleCloseTicketConfirm,
@@ -33,6 +47,28 @@ const BUTTON_HANDLERS: Record<string, ButtonHandler> = {
   [`${TICKET_DOMAIN}:closeconfirm`]: (interaction, ctx) =>
     handleCloseTicketConfirm(interaction, ctx),
   [`${TICKET_DOMAIN}:closecancel`]: (interaction) => handleCloseTicketCancel(interaction),
+  [`${TICKET_DOMAIN}:addpartner`]: handleAddPartnerButton,
+  [`${DEAL_DOMAIN}:swaproles`]: handleSwapRoles,
+};
+
+type UserSelectHandler = (
+  interaction: UserSelectMenuInteraction,
+  ctx: InteractionContext,
+  parts: CustomIdParts,
+) => Promise<void>;
+
+type StringSelectHandler = (
+  interaction: StringSelectMenuInteraction,
+  ctx: InteractionContext,
+  parts: CustomIdParts,
+) => Promise<void>;
+
+const USER_SELECT_HANDLERS: Record<string, UserSelectHandler> = {
+  [`${DEAL_DOMAIN}:partner`]: handlePartnerSelect,
+};
+
+const STRING_SELECT_HANDLERS: Record<string, StringSelectHandler> = {
+  [`${DEAL_DOMAIN}:roles`]: handleRoleSelect,
 };
 
 /**
@@ -69,12 +105,21 @@ async function route(interaction: Interaction, bot: BotContext): Promise<void> {
     }
 
     if (interaction.isButton()) {
-      await routeButton(interaction, ctx);
+      await routeComponent(interaction, ctx, BUTTON_HANDLERS);
       return;
     }
 
-    // Select menus and modals arrive with the same guarantees; their handlers
-    // are registered in later phases.
+    if (interaction.isUserSelectMenu()) {
+      await routeComponent(interaction, ctx, USER_SELECT_HANDLERS);
+      return;
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      await routeComponent(interaction, ctx, STRING_SELECT_HANDLERS);
+      return;
+    }
+
+    // Modals arrive with the same guarantees; their handlers land in Phase 4.
     await replyPrivate(interaction, {
       content: 'This control is not available yet.',
     });
@@ -83,19 +128,36 @@ async function route(interaction: Interaction, bot: BotContext): Promise<void> {
   }
 }
 
-async function routeButton(interaction: ButtonInteraction, ctx: InteractionContext): Promise<void> {
+/**
+ * Shared component routing.
+ *
+ * An id that does not parse, or that names a handler this build does not have,
+ * gets a friendly "out of date" reply rather than an error — components left
+ * over from a previous deployment degrade gracefully instead of looking broken.
+ */
+type ComponentInteraction =
+  ButtonInteraction | UserSelectMenuInteraction | StringSelectMenuInteraction;
+
+async function routeComponent<T extends ComponentInteraction>(
+  interaction: T,
+  ctx: InteractionContext,
+  handlers: Record<
+    string,
+    (interaction: T, ctx: InteractionContext, parts: CustomIdParts) => Promise<void>
+  >,
+): Promise<void> {
   const parts = parseCustomId(interaction.customId);
 
   if (!parts) {
     log.debug({ customId: interaction.customId }, 'unroutable custom id');
     await replyPrivate(interaction, {
       content:
-        '⚠️ This button is from an older version of the bot. Please use the latest message in this ticket.',
+        '⚠️ This control is from an older version of the bot. Please use the latest message in this ticket.',
     });
     return;
   }
 
-  const handler = BUTTON_HANDLERS[`${parts.domain}:${parts.action}`];
+  const handler = handlers[`${parts.domain}:${parts.action}`];
 
   if (!handler) {
     await replyPrivate(interaction, {

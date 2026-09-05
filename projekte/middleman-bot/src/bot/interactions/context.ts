@@ -3,6 +3,7 @@ import { type PrismaClient } from '@prisma/client';
 import { type Redis } from 'ioredis';
 import { ConfigService, type ResolvedGuildConfig } from '../../services/configService.js';
 import { TicketService } from '../../services/ticketService.js';
+import { DealService } from '../../services/dealService.js';
 import { newUuid } from '../../core/ids.js';
 
 /**
@@ -17,6 +18,7 @@ export interface BotContext {
   redis: Redis;
   config: ConfigService;
   tickets: TicketService;
+  deals: DealService;
 }
 
 export function createBotContext(params: {
@@ -30,6 +32,7 @@ export function createBotContext(params: {
     redis: params.redis,
     config: new ConfigService(params.prisma),
     tickets: new TicketService(params.prisma),
+    deals: new DealService(params.prisma),
   };
 }
 

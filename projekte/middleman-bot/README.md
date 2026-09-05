@@ -13,15 +13,16 @@ are released to the seller.
 
 ## Status
 
-Phases 1 and 2 of 17 are complete. The bot builds, starts, and runs a working
-ticket system; 131 tests pass.
+Phases 1–3 of 17 are complete. The bot builds, starts, and carries a deal from
+opening a ticket through to "the seller may now enter the deal details";
+169 tests pass.
 
 | Phase | Scope                                                                        | State              |
 | ----- | ---------------------------------------------------------------------------- | ------------------ |
 | 1     | Architecture, project structure, money engine, state machine, schema, Docker | ✅ done            |
 | 2     | Discord ticket system                                                        | ✅ done            |
-| 3     | Buyer/Seller role system                                                     | next               |
-| 4     | Deal details + buyer approval                                                | planned            |
+| 3     | Buyer/Seller role system                                                     | ✅ done            |
+| 4     | Deal details + buyer approval                                                | next               |
 | 5     | Crypto selection + USD calculation                                           | planned            |
 | 6     | Price provider + payment request                                             | planned            |
 | 7     | Blockchain payment monitoring                                                | planned            |
@@ -42,10 +43,13 @@ ticket system; 131 tests pass.
 - `/ticket` offers the same button privately.
 - Clicking it creates a private channel `middleman-0001` and deal `MM-0001`, visible only to the opener, staff roles and the bot.
 - The ticket receives the support welcome message, which always tells users they can tag the configured support role, and warns never to send funds to an address posted outside the ticket.
-- The ticket panel offers **Add Deal Partner** and **Close Ticket**.
-- Closing asks for confirmation, cancels the deal, posts a notice, locks the channel to read-only and archives it — and refuses outright when the deal is holding escrowed funds.
+- **👤 Add Deal Partner** opens a user picker for the ticket creator. The selection is validated server-side — not yourself, not a bot, not a banned user, must be a member of this server — and the partner is granted access to the channel.
+- The bot then asks **who is the Buyer**. The seller is derived as the other participant, so "the same person is both" cannot even be expressed, and is rejected again on the server.
+- **🔄 Swap Buyer / Seller** stays available until the seller actually submits deal details.
+- The seller is prompted to enter the deal details, with the reminder that the amount is in **USD**, never a crypto amount.
+- **❌ Close Ticket** asks for confirmation, cancels the deal, posts a notice, locks the channel to read-only and archives it — and refuses outright when the deal is holding escrowed funds.
 
-**Add Deal Partner** is rendered but answers "not available yet" until Phase 3.
+**Enter Deal Details** is rendered but answers "not available yet" until Phase 4.
 
 Nothing in this repository fakes a blockchain confirmation. Development runs in
 **MOCK MODE**, which is labelled as such in every message it produces.
