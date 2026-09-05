@@ -26,6 +26,7 @@ import {
   handleOpenDetailsModal,
   handleRequestChangesModal,
 } from './handlers/detailsFlow.js';
+import { handleBuyerCurrencySelect, handleSellerCurrencySelect } from './handlers/currencyFlow.js';
 import {
   handleCloseTicketCancel,
   handleCloseTicketConfirm,
@@ -81,6 +82,8 @@ const USER_SELECT_HANDLERS: Record<string, UserSelectHandler> = {
 
 const STRING_SELECT_HANDLERS: Record<string, StringSelectHandler> = {
   [`${DEAL_DOMAIN}:roles`]: handleRoleSelect,
+  [`${DEAL_DOMAIN}:paycur`]: handleBuyerCurrencySelect,
+  [`${DEAL_DOMAIN}:recvcur`]: handleSellerCurrencySelect,
 };
 
 type ModalHandler = (

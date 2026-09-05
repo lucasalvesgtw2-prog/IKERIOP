@@ -26,6 +26,7 @@ import {
   buildDealSummaryEmbed,
 } from '../../components/dealSummary.js';
 import { buildDealDetailsPrompt } from '../../components/dealPanels.js';
+import { postBuyerCurrencySelect } from './currencyFlow.js';
 import { assertFreshNonce, assertTargetMatches, loadDealForInteraction } from '../dealGuards.js';
 import { rotateRenderNonce } from '../renderNonce.js';
 import { safeReply } from '../respond.js';
@@ -189,6 +190,11 @@ export async function handleApproveDeal(
       }),
     ],
   });
+
+  // The approval and the currency step are separate transitions, so a failure
+  // to post the menu leaves an approved deal that staff can resume, never an
+  // approval that silently did not happen.
+  await postBuyerCurrencySelect(ctx, channel, updated);
 
   log.info({ dealId: updated.id }, 'deal approved by buyer');
 }

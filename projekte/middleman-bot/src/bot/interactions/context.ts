@@ -5,6 +5,7 @@ import { ConfigService, type ResolvedGuildConfig } from '../../services/configSe
 import { TicketService } from '../../services/ticketService.js';
 import { DealService } from '../../services/dealService.js';
 import { DealDetailsService } from '../../services/dealDetailsService.js';
+import { CurrencyService } from '../../services/currencyService.js';
 import { newUuid } from '../../core/ids.js';
 
 /**
@@ -21,6 +22,7 @@ export interface BotContext {
   tickets: TicketService;
   deals: DealService;
   dealDetails: DealDetailsService;
+  currencies: CurrencyService;
 }
 
 export function createBotContext(params: {
@@ -36,6 +38,7 @@ export function createBotContext(params: {
     tickets: new TicketService(params.prisma),
     deals: new DealService(params.prisma),
     dealDetails: new DealDetailsService(params.prisma),
+    currencies: new CurrencyService(params.prisma),
   };
 }
 
