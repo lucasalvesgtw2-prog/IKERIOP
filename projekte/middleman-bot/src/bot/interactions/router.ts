@@ -3,6 +3,8 @@ import {
   type ButtonInteraction,
   type Client,
   type Interaction,
+  type ModalSubmitInteraction,
+  type RepliableInteraction,
   type StringSelectMenuInteraction,
   type UserSelectMenuInteraction,
 } from 'discord.js';
@@ -17,6 +19,13 @@ import {
   handleRoleSelect,
   handleSwapRoles,
 } from './handlers/roleFlow.js';
+import {
+  handleApproveDeal,
+  handleChangesSubmit,
+  handleDetailsSubmit,
+  handleOpenDetailsModal,
+  handleRequestChangesModal,
+} from './handlers/detailsFlow.js';
 import {
   handleCloseTicketCancel,
   handleCloseTicketConfirm,
@@ -49,6 +58,9 @@ const BUTTON_HANDLERS: Record<string, ButtonHandler> = {
   [`${TICKET_DOMAIN}:closecancel`]: (interaction) => handleCloseTicketCancel(interaction),
   [`${TICKET_DOMAIN}:addpartner`]: handleAddPartnerButton,
   [`${DEAL_DOMAIN}:swaproles`]: handleSwapRoles,
+  [`${DEAL_DOMAIN}:details`]: handleOpenDetailsModal,
+  [`${DEAL_DOMAIN}:approve`]: handleApproveDeal,
+  [`${DEAL_DOMAIN}:changes`]: handleRequestChangesModal,
 };
 
 type UserSelectHandler = (
@@ -69,6 +81,17 @@ const USER_SELECT_HANDLERS: Record<string, UserSelectHandler> = {
 
 const STRING_SELECT_HANDLERS: Record<string, StringSelectHandler> = {
   [`${DEAL_DOMAIN}:roles`]: handleRoleSelect,
+};
+
+type ModalHandler = (
+  interaction: ModalSubmitInteraction,
+  ctx: InteractionContext,
+  parts: CustomIdParts,
+) => Promise<void>;
+
+const MODAL_HANDLERS: Record<string, ModalHandler> = {
+  [`${DEAL_DOMAIN}:detailsmodal`]: handleDetailsSubmit,
+  [`${DEAL_DOMAIN}:changesmodal`]: handleChangesSubmit,
 };
 
 /**
@@ -119,7 +142,11 @@ async function route(interaction: Interaction, bot: BotContext): Promise<void> {
       return;
     }
 
-    // Modals arrive with the same guarantees; their handlers land in Phase 4.
+    if (interaction.isModalSubmit()) {
+      await routeComponent(interaction, ctx, MODAL_HANDLERS);
+      return;
+    }
+
     await replyPrivate(interaction, {
       content: 'This control is not available yet.',
     });
@@ -135,8 +162,12 @@ async function route(interaction: Interaction, bot: BotContext): Promise<void> {
  * gets a friendly "out of date" reply rather than an error — components left
  * over from a previous deployment degrade gracefully instead of looking broken.
  */
-type ComponentInteraction =
-  ButtonInteraction | UserSelectMenuInteraction | StringSelectMenuInteraction;
+/**
+ * Anything the router dispatches on: a repliable interaction carrying a custom
+ * id. Constraining on that shape rather than on a union of concrete interaction
+ * types keeps buttons, selects and modals on a single code path.
+ */
+type ComponentInteraction = RepliableInteraction & { customId: string };
 
 async function routeComponent<T extends ComponentInteraction>(
   interaction: T,

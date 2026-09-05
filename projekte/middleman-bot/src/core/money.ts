@@ -1,4 +1,5 @@
 import { Decimal } from 'decimal.js';
+import { AppError } from './errors.js';
 
 /**
  * Financial arithmetic for the escrow bot.
@@ -24,10 +25,19 @@ export { Decimal };
 
 export const USD_DECIMALS = 2;
 
-export class MoneyError extends Error {
+/**
+ * A money-handling failure.
+ *
+ * It extends `AppError` with the VALIDATION code because every message thrown
+ * from this module is written to be read by the person who typed the value —
+ * "Enter the deal amount as a plain number in USD" is exactly what the seller
+ * needs to see. Without this, the interaction error boundary would fall back
+ * to a generic "Something went wrong" and the user would never learn what was
+ * wrong with their input.
+ */
+export class MoneyError extends AppError {
   constructor(message: string) {
-    super(message);
-    this.name = 'MoneyError';
+    super('VALIDATION', message, { userMessage: message });
   }
 }
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isAppError, toUserMessage } from '../../src/core/errors.js';
 import {
   Decimal,
   MoneyError,
@@ -105,5 +106,39 @@ describe('formatting', () => {
   it('serialises for the database as a fixed-point string', () => {
     expect(toDbString('105', 2)).toBe('105.00');
     expect(toDbString('0.1', 18)).toBe('0.100000000000000000');
+  });
+});
+
+describe('money errors reach the user', () => {
+  it('are AppErrors, so the interaction error boundary shows the real reason', () => {
+    // Without this, a seller typing "0.001 BTC" would only ever see the
+    // generic "Something went wrong" fallback.
+    try {
+      parseUserUsdAmount('0.001 BTC');
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(MoneyError);
+      expect(isAppError(error)).toBe(true);
+      expect(toUserMessage(error)).toContain('plain number in USD');
+      expect(toUserMessage(error)).not.toContain('Something went wrong');
+    }
+  });
+
+  it('carry a user-safe message for every rejection path', () => {
+    const cases: Array<[() => unknown, string]> = [
+      [() => parseUserUsdAmount('0'), 'greater than'],
+      [() => parseUserUsdAmount('100.001'), '2 decimal places'],
+      [() => toDecimal('abc'), 'valid decimal'],
+      [() => roundCryptoUp('1', -1), 'precision'],
+    ];
+
+    for (const [run, fragment] of cases) {
+      try {
+        run();
+        expect.unreachable('should have thrown');
+      } catch (error) {
+        expect(toUserMessage(error)).toContain(fragment);
+      }
+    }
   });
 });

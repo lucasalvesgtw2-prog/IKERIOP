@@ -13,17 +13,17 @@ are released to the seller.
 
 ## Status
 
-Phases 1–3 of 17 are complete. The bot builds, starts, and carries a deal from
-opening a ticket through to "the seller may now enter the deal details";
-169 tests pass.
+Phases 1–4 of 17 are complete. The bot builds, starts, and carries a deal from
+opening a ticket through to the buyer's approval of the agreed USD price;
+216 tests pass.
 
 | Phase | Scope                                                                        | State              |
 | ----- | ---------------------------------------------------------------------------- | ------------------ |
 | 1     | Architecture, project structure, money engine, state machine, schema, Docker | ✅ done            |
 | 2     | Discord ticket system                                                        | ✅ done            |
 | 3     | Buyer/Seller role system                                                     | ✅ done            |
-| 4     | Deal details + buyer approval                                                | next               |
-| 5     | Crypto selection + USD calculation                                           | planned            |
+| 4     | Deal details + buyer approval                                                | ✅ done            |
+| 5     | Crypto selection + USD calculation                                           | next               |
 | 6     | Price provider + payment request                                             | planned            |
 | 7     | Blockchain payment monitoring                                                | planned            |
 | 8     | Deal completion confirmation                                                 | planned            |
@@ -45,11 +45,12 @@ opening a ticket through to "the seller may now enter the deal details";
 - The ticket receives the support welcome message, which always tells users they can tag the configured support role, and warns never to send funds to an address posted outside the ticket.
 - **👤 Add Deal Partner** opens a user picker for the ticket creator. The selection is validated server-side — not yourself, not a bot, not a banned user, must be a member of this server — and the partner is granted access to the channel.
 - The bot then asks **who is the Buyer**. The seller is derived as the other participant, so "the same person is both" cannot even be expressed, and is rejected again on the server.
-- **🔄 Swap Buyer / Seller** stays available until the seller actually submits deal details.
-- The seller is prompted to enter the deal details, with the reminder that the amount is in **USD**, never a crypto amount.
-- **❌ Close Ticket** asks for confirmation, cancels the deal, posts a notice, locks the channel to read-only and archives it — and refuses outright when the deal is holding escrowed funds.
+- **🔄 Swap Buyer / Seller** stays available until the seller submits deal details.
+- **📝 Enter Deal Details** opens a modal for the seller: Item / Service, Description, Additional Terms, and **Deal Amount in USD**. The amount is parsed as US Dollars; `0.001 BTC` and `100 USDT` are rejected with a message that says exactly why. Minimum and maximum deal amounts are enforced.
+- The bot posts the **deal summary** — Deal Value, Middleman Fee, **Buyer Pays** and Seller Receives, all in USD, so the buyer knows the total _before_ agreeing. Everything the seller typed is escaped, so it cannot imitate the bot's own formatting.
+- **✅ Confirm Deal** / **❌ Request Changes** — only the buyer's click is accepted. A change request collects a written reason, sends the deal back to the seller with the previous values pre-filled, and stores a new revision. **The old approval never carries over: every revision must be approved again.**
 
-**Enter Deal Details** is rendered but answers "not available yet" until Phase 4.
+Currency selection is the next step and answers "not available yet" until Phase 5.
 
 Nothing in this repository fakes a blockchain confirmation. Development runs in
 **MOCK MODE**, which is labelled as such in every message it produces.

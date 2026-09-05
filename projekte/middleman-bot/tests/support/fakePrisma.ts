@@ -24,6 +24,7 @@ export interface FakePrismaState {
   auditLogs: FakeRow[];
   stateTransitions: FakeRow[];
   dealParticipants: FakeRow[];
+  dealDetails: FakeRow[];
 }
 
 let sequence = 0;
@@ -44,6 +45,7 @@ export function createFakePrisma(seed: Partial<FakePrismaState> = {}): FakePrism
     auditLogs: seed.auditLogs ?? [],
     stateTransitions: seed.stateTransitions ?? [],
     dealParticipants: seed.dealParticipants ?? [],
+    dealDetails: seed.dealDetails ?? [],
   };
 
   const client: any = {
@@ -161,6 +163,46 @@ export function createFakePrisma(seed: Partial<FakePrismaState> = {}): FakePrism
         state.dealParticipants
           .filter((p) => where?.dealId === undefined || p.dealId === where.dealId)
           .map((p) => ({ ...p })),
+      ),
+    },
+
+    dealDetails: {
+      create: vi.fn(async ({ data }: any) => {
+        // Mirrors @@unique([dealId, revision]).
+        const clash = state.dealDetails.some(
+          (d) => d.dealId === data.dealId && d.revision === data.revision,
+        );
+        if (clash) {
+          const error: any = new Error('Unique constraint failed on deal_details');
+          error.code = 'P2002';
+          throw error;
+        }
+        const created: FakeRow = { id: nextId('details'), ...data };
+        state.dealDetails.push(created);
+        return { ...created };
+      }),
+      findFirst: vi.fn(async ({ where, orderBy, select }: any) => {
+        let rows = state.dealDetails.filter((d) => d.dealId === where.dealId);
+        if (orderBy?.revision === 'desc') {
+          rows = [...rows].sort((a, b) => (b.revision as number) - (a.revision as number));
+        }
+        const row = rows[0];
+        if (!row) return null;
+        if (select) {
+          return Object.fromEntries(Object.keys(select).map((key) => [key, row[key]]));
+        }
+        return { ...row };
+      }),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.dealDetails.find((d) => d.id === where.id);
+        if (!row) throw new Error('deal details not found');
+        Object.assign(row, stripUndefined(data));
+        return { ...row };
+      }),
+      findMany: vi.fn(async ({ where }: any) =>
+        state.dealDetails
+          .filter((d) => where?.dealId === undefined || d.dealId === where.dealId)
+          .map((d) => ({ ...d })),
       ),
     },
 
