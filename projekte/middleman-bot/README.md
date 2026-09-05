@@ -13,15 +13,14 @@ are released to the seller.
 
 ## Status
 
-Phase 1 of 17 is complete: architecture, project structure, configuration and
-safety gates, the money engine, the deal state machine, the asset registry, the
-database schema, Docker, and the design documents.
+Phases 1 and 2 of 17 are complete. The bot builds, starts, and runs a working
+ticket system; 131 tests pass.
 
 | Phase | Scope                                                                        | State              |
 | ----- | ---------------------------------------------------------------------------- | ------------------ |
 | 1     | Architecture, project structure, money engine, state machine, schema, Docker | ✅ done            |
-| 2     | Discord ticket system                                                        | next               |
-| 3     | Buyer/Seller role system                                                     | planned            |
+| 2     | Discord ticket system                                                        | ✅ done            |
+| 3     | Buyer/Seller role system                                                     | next               |
 | 4     | Deal details + buyer approval                                                | planned            |
 | 5     | Crypto selection + USD calculation                                           | planned            |
 | 6     | Price provider + payment request                                             | planned            |
@@ -36,6 +35,17 @@ database schema, Docker, and the design documents.
 | 15    | Tests                                                                        | ongoing each phase |
 | 16    | Docker + Windows setup                                                       | ✅ done            |
 | 17    | Final documentation                                                          | planned            |
+
+### What works today
+
+- `/setup` posts the public panel with the **🎫 Open Middleman Ticket** button (admin only, checked server-side).
+- `/ticket` offers the same button privately.
+- Clicking it creates a private channel `middleman-0001` and deal `MM-0001`, visible only to the opener, staff roles and the bot.
+- The ticket receives the support welcome message, which always tells users they can tag the configured support role, and warns never to send funds to an address posted outside the ticket.
+- The ticket panel offers **Add Deal Partner** and **Close Ticket**.
+- Closing asks for confirmation, cancels the deal, posts a notice, locks the channel to read-only and archives it — and refuses outright when the deal is holding escrowed funds.
+
+**Add Deal Partner** is rendered but answers "not available yet" until Phase 3.
 
 Nothing in this repository fakes a blockchain confirmation. Development runs in
 **MOCK MODE**, which is labelled as such in every message it produces.

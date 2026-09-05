@@ -64,7 +64,30 @@ export function getLogger(): Logger {
   return root;
 }
 
-/** Creates a child logger with a stable component name. */
+/**
+ * Creates a child logger with a stable component name.
+ *
+ * The child is built lazily behind a proxy. Modules conventionally do
+ * `const log = createLogger('x')` at the top level, and constructing the root
+ * logger eagerly would drag environment validation into every import — so a
+ * tool or a test that imports a service would fail before it ran a line of it.
+ * Nothing is constructed until something is actually logged.
+ */
 export function createLogger(component: string, bindings: Record<string, unknown> = {}): Logger {
-  return getLogger().child({ component, ...bindings });
+  let child: Logger | undefined;
+  const resolve = (): Logger => (child ??= getLogger().child({ component, ...bindings }));
+
+  return new Proxy({} as Logger, {
+    get(_target, property, receiver) {
+      const logger = resolve();
+      const value = Reflect.get(logger as object, property, receiver);
+      return typeof value === 'function'
+        ? (value as (...args: unknown[]) => unknown).bind(logger)
+        : value;
+    },
+    has: (_target, property) => property in (resolve() as object),
+    ownKeys: () => Reflect.ownKeys(resolve() as object),
+    getOwnPropertyDescriptor: (_target, property) =>
+      Reflect.getOwnPropertyDescriptor(resolve() as object, property),
+  });
 }

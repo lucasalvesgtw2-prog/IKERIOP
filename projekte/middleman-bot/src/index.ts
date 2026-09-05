@@ -1,9 +1,12 @@
 import { type Client } from 'discord.js';
 import { getEnv, EnvValidationError } from './config/env.js';
 import { createLogger, getLogger } from './core/logger.js';
-import { connectPrisma, disconnectPrisma } from './infra/prisma.js';
-import { connectRedis, disconnectRedis } from './infra/redis.js';
+import { connectPrisma, disconnectPrisma, getPrisma } from './infra/prisma.js';
+import { connectRedis, disconnectRedis, getRedis } from './infra/redis.js';
 import { createDiscordClient, loginDiscordClient } from './bot/client.js';
+import { createBotContext } from './bot/interactions/context.js';
+import { registerInteractionRouter } from './bot/interactions/router.js';
+import { registerCommands } from './bot/registerCommands.js';
 
 /**
  * Application entrypoint.
@@ -37,11 +40,17 @@ async function main(): Promise<void> {
 
   const client: Client = createDiscordClient();
 
+  const bot = createBotContext({ client, prisma: getPrisma(), redis: getRedis() });
+  registerInteractionRouter(client, bot);
+
   client.once('clientReady', (ready) => {
     log.info({ user: ready.user.tag, guilds: ready.guilds.cache.size }, 'bot ready');
   });
 
   await loginDiscordClient(client);
+
+  // Registered after login so a bad token fails on login rather than here.
+  await registerCommands();
 
   registerShutdownHandlers(client);
 }
