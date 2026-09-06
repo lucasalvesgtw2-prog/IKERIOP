@@ -202,13 +202,36 @@ describe('payout review required', () => {
     expect(canTransition('PAYOUT_REVIEW_REQUIRED', 'PAYOUT_PENDING')).toBe(false);
     expect(canTransition('PAYOUT_REVIEW_REQUIRED', 'PAYOUT_BROADCAST')).toBe(false);
     expect(canTransition('PAYOUT_REVIEW_REQUIRED', 'READY_FOR_PAYOUT_ADDRESS')).toBe(false);
-    // The only exits are staff decisions that end the deal or escalate it.
-    // None of them can produce a second payout.
-    expect(allowedTransitions('PAYOUT_REVIEW_REQUIRED').sort()).toEqual([
-      'COMPLETED',
-      'DISPUTED',
-      'FAILED',
-    ]);
+    // Both exits are terminal. Anything non-terminal here would be a route
+    // back to a payout for a deal that already had one broadcast — including
+    // transitively, via a dispute that staff resolve as a release.
+    expect(allowedTransitions('PAYOUT_REVIEW_REQUIRED').sort()).toEqual(['COMPLETED', 'FAILED']);
+    expect(canTransition('PAYOUT_REVIEW_REQUIRED', 'DISPUTED')).toBe(false);
+  });
+
+  it('offers no transitive route back into a payout either', () => {
+    // The full reachable set from PAYOUT_REVIEW_REQUIRED, not just one step.
+    const seen = new Set<DealState>(['PAYOUT_REVIEW_REQUIRED']);
+    const queue: DealState[] = ['PAYOUT_REVIEW_REQUIRED'];
+
+    while (queue.length > 0) {
+      for (const next of allowedTransitions(queue.shift()!)) {
+        if (seen.has(next)) continue;
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+
+    for (const payoutState of [
+      'PAYOUT_PENDING',
+      'PAYOUT_BROADCAST',
+      'PAYOUT_CONFIRMING',
+      'READY_FOR_PAYOUT_ADDRESS',
+      'PAYOUT_REVIEW',
+      'PAYOUT_ADDRESS_SUBMITTED',
+    ] as DealState[]) {
+      expect(seen.has(payoutState), `reachable: ${payoutState}`).toBe(false);
+    }
   });
 });
 

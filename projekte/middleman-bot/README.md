@@ -13,44 +13,88 @@ are released to the seller.
 
 ## Status
 
-Phases 1–14 of 17 are complete. The bot builds, starts, and carries a deal from
-opening a ticket through to the buyer's approval of the agreed USD price;
-216 tests pass.
+All 17 phases are complete. The bot builds, starts, and carries a deal from an
+empty ticket through to a confirmed payout and an archived ticket. 346 tests
+pass; typecheck, ESLint, Prettier and the production build are clean.
 
-| Phase | Scope                                                                        | State              |
-| ----- | ---------------------------------------------------------------------------- | ------------------ |
-| 1     | Architecture, project structure, money engine, state machine, schema, Docker | ✅ done            |
-| 2     | Discord ticket system                                                        | ✅ done            |
-| 3     | Buyer/Seller role system                                                     | ✅ done            |
-| 4     | Deal details + buyer approval                                                | ✅ done            |
-| 5     | Crypto selection + USD calculation                                           | ✅ done            |
-| 6     | Price provider + payment request                                             | ✅ done            |
-| 7     | Blockchain payment monitoring                                                | ✅ done            |
-| 8     | Deal completion confirmation                                                 | ✅ done            |
-| 9     | Payout address + validation                                                  | ✅ done            |
-| 10    | Secure payout system                                                         | ✅ done            |
-| 11    | Seller receipt confirmation                                                  | ✅ done            |
-| 12    | Dispute system                                                               | ✅ done            |
-| 13    | Database + audit logging                                                     | ✅ done            |
-| 14    | Security hardening + `SECURITY.md`                                           | ✅ done            |
-| 15    | Tests                                                                        | ongoing each phase |
-| 16    | Docker + Windows setup                                                       | ✅ done            |
-| 17    | Final documentation                                                          | next               |
+| Phase | Scope                                                                        | State   |
+| ----- | ---------------------------------------------------------------------------- | ------- |
+| 1     | Architecture, project structure, money engine, state machine, schema, Docker | ✅ done |
+| 2     | Discord ticket system                                                        | ✅ done |
+| 3     | Buyer/Seller role system                                                     | ✅ done |
+| 4     | Deal details + buyer approval                                                | ✅ done |
+| 5     | Crypto selection + USD calculation                                           | ✅ done |
+| 6     | Price provider + payment request                                             | ✅ done |
+| 7     | Blockchain payment monitoring                                                | ✅ done |
+| 8     | Deal completion confirmation                                                 | ✅ done |
+| 9     | Payout address + validation                                                  | ✅ done |
+| 10    | Secure payout system                                                         | ✅ done |
+| 11    | Seller receipt confirmation                                                  | ✅ done |
+| 12    | Dispute system                                                               | ✅ done |
+| 13    | Database + audit logging                                                     | ✅ done |
+| 14    | Security hardening + `SECURITY.md`                                           | ✅ done |
+| 15    | Tests                                                                        | ✅ done |
+| 16    | Docker + Windows setup                                                       | ✅ done |
+| 17    | Final documentation                                                          | ✅ done |
 
-### What works today
+### The complete flow
 
-- `/setup` posts the public panel with the **🎫 Open Middleman Ticket** button (admin only, checked server-side).
-- `/ticket` offers the same button privately.
-- Clicking it creates a private channel `middleman-0001` and deal `MM-0001`, visible only to the opener, staff roles and the bot.
-- The ticket receives the support welcome message, which always tells users they can tag the configured support role, and warns never to send funds to an address posted outside the ticket.
-- **👤 Add Deal Partner** opens a user picker for the ticket creator. The selection is validated server-side — not yourself, not a bot, not a banned user, must be a member of this server — and the partner is granted access to the channel.
-- The bot then asks **who is the Buyer**. The seller is derived as the other participant, so "the same person is both" cannot even be expressed, and is rejected again on the server.
-- **🔄 Swap Buyer / Seller** stays available until the seller submits deal details.
-- **📝 Enter Deal Details** opens a modal for the seller: Item / Service, Description, Additional Terms, and **Deal Amount in USD**. The amount is parsed as US Dollars; `0.001 BTC` and `100 USDT` are rejected with a message that says exactly why. Minimum and maximum deal amounts are enforced.
-- The bot posts the **deal summary** — Deal Value, Middleman Fee, **Buyer Pays** and Seller Receives, all in USD, so the buyer knows the total _before_ agreeing. Everything the seller typed is escaped, so it cannot imitate the bot's own formatting.
-- **✅ Confirm Deal** / **❌ Request Changes** — only the buyer's click is accepted. A change request collects a written reason, sends the deal back to the seller with the previous values pre-filled, and stores a new revision. **The old approval never carries over: every revision must be approved again.**
+```
+Open Middleman Ticket  →  private channel + support message
+        ↓
+Add Deal Partner       →  validated server-side, partner gets channel access
+        ↓
+Assign Buyer / Seller  →  one select; the other party becomes the seller
+        ↓
+Seller enters details  →  Item · Description · Terms · Deal Amount in USD
+        ↓
+Deal summary           →  Deal Value · Fee · Buyer Pays · Seller Receives
+        ↓
+Buyer approves         →  or requests changes; approval is re-earned each time
+        ↓
+Buyer picks payment    →  e.g. USDT on TRC20
+Seller picks receiving →  e.g. BTC on Bitcoin — they may differ
+        ↓
+Payment request        →  address + exact amount from a stored, expiring quote
+        ↓
+Blockchain monitoring  →  detected → confirmations → confirmed
+        ↓
+"Payment Confirmed"    →  posted only after independent on-chain verification
+        ↓
+Both confirm complete  →  buyer and seller, independently
+        ↓
+Seller enters payout address  →  validated for that exact asset and network
+        ↓
+Payout review          →  authorised by a middleman who is not a party
+        ↓
+Payout broadcast       →  idempotent; a crash recovers, never re-sends
+        ↓
+Seller confirms receipt →  DEAL COMPLETED, ticket archived
+```
 
-Currency selection is the next step and answers "not available yet" until Phase 5.
+At any point after the payment is confirmed, either party can open a dispute,
+which freezes the deal and blocks the payout until staff resolve it.
+
+### Commands
+
+| Command                                   | Who                 | What                                          |
+| ----------------------------------------- | ------------------- | --------------------------------------------- |
+| `/setup`                                  | Admin               | Post the public "Open Middleman Ticket" panel |
+| `/ticket`                                 | Anyone              | Open a ticket privately                       |
+| `/deal status`                            | Participants, staff | Full status of the deal in this ticket        |
+| `/deal dispute`                           | Participants        | How to open a dispute                         |
+| `/admin config show`                      | Support             | The effective configuration and runtime mode  |
+| `/admin config fee`                       | Admin               | Set the fee for **new** deals                 |
+| `/admin config roles`                     | Admin               | Set the support, middleman and admin roles    |
+| `/admin config limits`                    | Admin               | Set the minimum and maximum deal amount       |
+| `/admin wallet list \| add`               | Admin               | Manage deposit and treasury addresses         |
+| `/admin dispute list \| claim \| resolve` | Support             | Handle disputes                               |
+| `/admin deal list \| note`                | Support             | Find deals needing attention; annotate one    |
+| `/admin payout sent`                      | Middleman           | Record a manually broadcast payout            |
+| `/admin payout reconcile`                 | Middleman           | Re-check every in-flight payout at the signer |
+
+Normal users never need a command: the whole flow runs on buttons, select menus
+and modals inside the ticket.
 
 Nothing in this repository fakes a blockchain confirmation. Development runs in
 **MOCK MODE**, which is labelled as such in every message it produces.
@@ -306,6 +350,66 @@ asset's precision, so rounding can never leave escrow under-funded.
 | `Missing Permissions` when opening a ticket  | The bot needs Manage Channels and Manage Roles, and its role must sit above the members it manages. |
 | `Missing Access` on adding a partner         | Enable the **Server Members Intent** in the Developer Portal.                                       |
 | Token leaked                                 | Reset it in the Developer Portal, update `.env`, restart.                                           |
+
+---
+
+## Going live: the operator checklist
+
+Work through this in order. Every step is deliberately manual.
+
+1. **Run on testnet first.** Set `CHAIN_NETWORK_MODE=testnet`, point
+   `BTC_RPC_URL` / `EVM_RPC_URL` / `TRON_API_URL` at testnet endpoints, and run
+   a complete deal end to end with real testnet coins.
+2. **Register deposit addresses.** `/admin wallet add kind:Deposit …` for every
+   asset and network you enable. Add **several per rail**: an address is
+   reserved per deal and a deal cannot start when the pool is empty.
+3. **Choose a signer.** `SIGNER_BACKEND=manual` is recommended: the bot holds
+   no keys, a middleman sends from a hardware wallet, and the bot verifies the
+   hash on chain. Only use `external` once you have implemented the `Signer`
+   interface for your signing service.
+4. **Set the roles.** `/admin config roles` — the support role is the one users
+   are told to tag, and the middleman role is the only one that can authorise a
+   payout.
+5. **Set confirmations for your amounts.** `CONFIRMATIONS_BTC` and friends are
+   snapshotted onto each payment, so raising them protects new deals
+   immediately and never retroactively unconfirms an old one.
+6. **Read `SECURITY.md`**, especially the known limitations.
+7. **Only then** set `LIVE_MODE=true`, `CHAIN_NETWORK_MODE=mainnet` and
+   `LIVE_MODE_CONFIRMATION=I_UNDERSTAND_THIS_MOVES_REAL_FUNDS`. The bot refuses
+   to start if any of these is inconsistent, or if a mock provider is still
+   configured.
+
+### Daily operation
+
+| Situation                              | What to do                                                                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| A deal is stuck                        | `/deal status` in the ticket shows the state, the payment, the payout and every confirmation flag |
+| Something needs attention              | `/admin deal list` shows disputed, review-required and failed deals                               |
+| A dispute comes in                     | `/admin dispute claim`, investigate, then `/admin dispute resolve`                                |
+| A payout is authorised (manual signer) | Send the funds, then `/admin payout sent txhash:…`                                                |
+| The bot restarted mid-payout           | Reconciliation runs automatically on boot; `/admin payout reconcile` forces it                    |
+| A buyer under-paid                     | The bot stops and pings support. Resolve it with the buyer; nothing is credited automatically     |
+
+---
+
+## Testing
+
+```bash
+npm test                 # the whole suite
+npm run test:coverage    # with coverage
+npm run check            # format + lint + typecheck + tests, as CI would
+```
+
+346 tests. The ones worth knowing about:
+
+| File                        | Covers                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `payoutIdempotency.test.ts` | Ten concurrent broadcasts on one key produce exactly one send; a crash recovers by lookup            |
+| `state.test.ts`             | Every illegal shortcut, and the **full reachable set** from `PAYOUT_REVIEW_REQUIRED`                 |
+| `addressValidation.test.ts` | Real addresses, cross-chain and wrong-network rejection, checksum failures                           |
+| `quotes.test.ts`            | USD→crypto conversion, always-up rounding, tamper detection on a stored quote                        |
+| `security.test.ts`          | The mechanical invariants: no key columns, no floats in money, constraints present, secrets redacted |
+| `dealLifecycle.test.ts`     | A whole deal driven through the services in flow order                                               |
 
 ---
 

@@ -94,7 +94,10 @@ export const DISPUTABLE_STATES: ReadonlySet<DealState> = new Set<DealState>([
   'PAYOUT_ADDRESS_SUBMITTED',
   'PAYOUT_REVIEW',
   'WAITING_FOR_SELLER_RECEIPT',
-  'PAYOUT_REVIEW_REQUIRED',
+  // PAYOUT_REVIEW_REQUIRED is deliberately absent. It is already a frozen,
+  // staff-only state, so a dispute would add no capability — but DISPUTED can
+  // return a deal to the payout track, which would give a transitive route
+  // back into a second payout. See the note on its transitions below.
 ]);
 
 /**
@@ -165,8 +168,15 @@ const BASE_TRANSITIONS: Readonly<Record<DealState, readonly DealState[]>> = {
   PAYOUT_CONFIRMING: ['PAYOUT_CONFIRMED', 'PAYOUT_REVIEW_REQUIRED'],
   PAYOUT_CONFIRMED: ['WAITING_FOR_SELLER_RECEIPT'],
   WAITING_FOR_SELLER_RECEIPT: ['COMPLETED', 'PAYOUT_REVIEW_REQUIRED'],
-  // Only staff resolve a payout review; never an automatic re-payout.
-  PAYOUT_REVIEW_REQUIRED: ['COMPLETED', 'DISPUTED'],
+  /**
+   * The seller reported that a broadcast payout never arrived.
+   *
+   * Both exits are terminal on purpose. Reaching a payout state again from
+   * here — even transitively, via a dispute that staff then resolve as a
+   * release — would be a route to a second payout for a deal that has already
+   * had one broadcast. Staff resolve this out of band and close the deal.
+   */
+  PAYOUT_REVIEW_REQUIRED: ['COMPLETED', 'FAILED'],
   COMPLETED: [],
   DISPUTED: [],
   CANCELLED: [],

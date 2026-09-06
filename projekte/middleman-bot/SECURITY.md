@@ -29,7 +29,7 @@ the implementation matches it.
 | Confirmation logic   | ✅ Requirement snapshotted per payment; re-orgs reset the count      |
 | Mainnet safety       | ✅ Three independent switches, none of them default-on               |
 
-Three real defects were found and fixed during development. They are recorded
+Four real defects were found and fixed during development. They are recorded
 below because "no findings" in a review of one's own code usually means the
 review was not done.
 
@@ -128,7 +128,31 @@ trusting the state it checked before acquiring it.
 
 The state machine adds a seventh: `PAYOUT_REVIEW_REQUIRED` — the state a deal
 enters when the seller reports missing funds — has **no transition back into
-any payout state**. Its only exits are `COMPLETED`, `DISPUTED` and `FAILED`.
+any payout state, transitively or otherwise**. Its only exits are `COMPLETED`
+and `FAILED`, both terminal.
+
+### Finding 4 — a transitive route back into a payout _(fixed)_
+
+`PAYOUT_REVIEW_REQUIRED` originally allowed `DISPUTED` as an exit, and
+`DISPUTED` can be resolved back onto the payout track. The one-step claim
+"no path back into a payout" was therefore true, and the transitive claim —
+the one that actually matters — was false:
+
+```
+PAYOUT_REVIEW_REQUIRED → DISPUTED → READY_FOR_PAYOUT_ADDRESS → … → PAYOUT_BROADCAST
+```
+
+It was **not exploitable**: `PayoutService.submitAddress` refuses when a payout
+row already exists in any status other than `DRAFT` or `REJECTED`, and after a
+missing-funds report it is `REVIEW_REQUIRED`. Defence in depth held. But a state
+machine that the documentation describes as closed must actually be closed, and
+relying on a downstream service to catch it is exactly the kind of coupling that
+breaks silently in a refactor.
+
+`PAYOUT_REVIEW_REQUIRED` is no longer disputable, and both its exits are now
+terminal. The regression test walks the **full reachable set** from that state
+rather than checking one step, which is what would have caught it originally.
+Found by the end-to-end lifecycle test added in Phase 15.
 
 Tested in `tests/unit/payoutIdempotency.test.ts`, including ten concurrent
 broadcasts on one key producing exactly one send, and a simulated crash
