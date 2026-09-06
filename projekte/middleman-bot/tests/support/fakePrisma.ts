@@ -333,6 +333,57 @@ export function createFakePrisma(seed: Partial<FakePrismaState> = {}): FakePrism
       }),
     },
 
+    dispute: {
+      create: vi.fn(async ({ data }: any) => {
+        const created: FakeRow = { id: nextId('dispute'), createdAt: new Date(), ...data };
+        state.disputes.push(created);
+        return { ...created };
+      }),
+      findFirst: vi.fn(async ({ where }: any) => {
+        const rows = state.disputes.filter((d) => {
+          if (where.dealId !== undefined && d.dealId !== where.dealId) return false;
+          if (where.status?.in && !where.status.in.includes(d.status)) return false;
+          return true;
+        });
+        const row = rows[rows.length - 1];
+        return row ? { ...row } : null;
+      }),
+      findMany: vi.fn(async ({ where }: any) =>
+        state.disputes
+          .filter((d) => !where?.status?.in || where.status.in.includes(d.status))
+          .map((d) => ({ ...d })),
+      ),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.disputes.find((d) => d.id === where.id);
+        if (!row) throw new Error('dispute not found');
+        applyUpdate(row, data);
+        return { ...row };
+      }),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        const rows = state.disputes.filter(
+          (d) =>
+            (where.id === undefined || d.id === where.id) &&
+            (where.status === undefined || d.status === where.status),
+        );
+        for (const row of rows) applyUpdate(row, data);
+        return { count: rows.length };
+      }),
+    },
+
+    supportAction: {
+      create: vi.fn(async ({ data }: any) => {
+        const created: FakeRow = { id: nextId('support'), createdAt: new Date(), ...data };
+        state.supportActions.push(created);
+        return { ...created };
+      }),
+      findMany: vi.fn(async () => state.supportActions.map((a) => ({ ...a }))),
+    },
+
+    guildConfig: {
+      findUnique: vi.fn(async () => null),
+      upsert: vi.fn(async ({ where, create }: any) => ({ guildId: where.guildId, ...create })),
+    },
+
     ticketCounter: {
       upsert: vi.fn(async ({ where, create }: any) => {
         const current = state.counters.get(where.guildId);

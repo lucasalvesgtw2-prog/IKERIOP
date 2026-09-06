@@ -11,6 +11,7 @@ import { PaymentService } from '../../services/paymentService.js';
 import { PaymentMonitorService } from '../../services/paymentMonitorService.js';
 import { CompletionService } from '../../services/completionService.js';
 import { PayoutService } from '../../services/payoutService.js';
+import { DisputeService } from '../../services/disputeService.js';
 import { createSigner, type Signer } from '../../wallets/index.js';
 import { ChainRegistry } from '../../chains/index.js';
 import { createPriceProvider, type PriceProvider } from '../../prices/index.js';
@@ -36,6 +37,7 @@ export interface BotContext {
   paymentMonitor: PaymentMonitorService;
   completion: CompletionService;
   payouts: PayoutService;
+  disputes: DisputeService;
   chains: ChainRegistry;
   signer: Signer;
   prices: PriceProvider;
@@ -64,6 +66,7 @@ export function createBotContext(params: {
     paymentMonitor: new PaymentMonitorService(params.prisma),
     completion: new CompletionService(params.prisma),
     payouts: new PayoutService(params.prisma, prices, signer),
+    disputes: new DisputeService(params.prisma),
     chains: new ChainRegistry(params.redis),
     signer,
     prices,

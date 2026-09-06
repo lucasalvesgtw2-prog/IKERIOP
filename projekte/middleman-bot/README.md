@@ -13,7 +13,7 @@ are released to the seller.
 
 ## Status
 
-Phases 1–11 of 17 are complete. The bot builds, starts, and carries a deal from
+Phases 1–14 of 17 are complete. The bot builds, starts, and carries a deal from
 opening a ticket through to the buyer's approval of the agreed USD price;
 216 tests pass.
 
@@ -30,12 +30,12 @@ opening a ticket through to the buyer's approval of the agreed USD price;
 | 9     | Payout address + validation                                                  | ✅ done            |
 | 10    | Secure payout system                                                         | ✅ done            |
 | 11    | Seller receipt confirmation                                                  | ✅ done            |
-| 12    | Dispute system                                                               | next               |
-| 13    | Database + audit logging                                                     | planned            |
-| 14    | Security hardening + `SECURITY.md`                                           | planned            |
+| 12    | Dispute system                                                               | ✅ done            |
+| 13    | Database + audit logging                                                     | ✅ done            |
+| 14    | Security hardening + `SECURITY.md`                                           | ✅ done            |
 | 15    | Tests                                                                        | ongoing each phase |
 | 16    | Docker + Windows setup                                                       | ✅ done            |
-| 17    | Final documentation                                                          | planned            |
+| 17    | Final documentation                                                          | next               |
 
 ### What works today
 

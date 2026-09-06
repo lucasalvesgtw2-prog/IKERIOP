@@ -37,6 +37,7 @@ import {
   handlePayoutAddressSubmit,
   handleRejectPayout,
 } from './handlers/payoutFlow.js';
+import { handleDisputeSubmit, handleOpenDisputeModal } from './handlers/disputeFlow.js';
 import {
   handleCloseTicketCancel,
   handleCloseTicketConfirm,
@@ -80,6 +81,7 @@ const BUTTON_HANDLERS: Record<string, ButtonHandler> = {
   [`${DEAL_DOMAIN}:payreject`]: handleRejectPayout,
   [`${DEAL_DOMAIN}:received`]: handleFundsReceived,
   [`${DEAL_DOMAIN}:notreceived`]: handleFundsNotReceived,
+  [`${DEAL_DOMAIN}:dispute`]: handleOpenDisputeModal,
 };
 
 type UserSelectHandler = (
@@ -114,6 +116,7 @@ const MODAL_HANDLERS: Record<string, ModalHandler> = {
   [`${DEAL_DOMAIN}:detailsmodal`]: handleDetailsSubmit,
   [`${DEAL_DOMAIN}:changesmodal`]: handleChangesSubmit,
   [`${DEAL_DOMAIN}:payaddrmodal`]: handlePayoutAddressSubmit,
+  [`${DEAL_DOMAIN}:disputemodal`]: handleDisputeSubmit,
 };
 
 /**
