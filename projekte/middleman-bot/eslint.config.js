@@ -55,6 +55,22 @@ export default [
     },
   },
   {
+    // Node scripts run directly by npm, outside the TypeScript build.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+      },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     files: ['tests/**/*.ts'],
     rules: {
       'no-console': 'off',

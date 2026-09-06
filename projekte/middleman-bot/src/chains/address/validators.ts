@@ -1,7 +1,16 @@
 import { bech32, bech32m } from 'bech32';
 import bs58check from 'bs58check';
-import { keccak_256 } from 'js-sha3';
+import sha3 from 'js-sha3';
 import { type AddressValidationResult } from '../ChainAdapter.js';
+
+/**
+ * js-sha3 is CommonJS and assembles its exports object at runtime
+ * (`module.exports = methods`), so Node's static CJS analysis cannot synthesise
+ * named exports for it. `import { keccak_256 } from 'js-sha3'` type-checks
+ * against the package's ESM-style .d.ts but throws at runtime under real Node
+ * ESM; the default import is the whole exports object.
+ */
+const { keccak_256 } = sha3;
 
 /**
  * Address validation, per chain family.

@@ -1,5 +1,6 @@
 import { type Client } from 'discord.js';
 import { getEnv, EnvValidationError } from './config/env.js';
+import { ConfigurationError } from './core/errors.js';
 import { createLogger, getLogger } from './core/logger.js';
 import { connectPrisma, disconnectPrisma, getPrisma } from './infra/prisma.js';
 import { connectRedis, disconnectRedis, getRedis } from './infra/redis.js';
@@ -112,6 +113,13 @@ function registerShutdownHandlers(client: Client, stopWorkers: () => void): void
 }
 
 main().catch((error: unknown) => {
+  // A configuration problem is the operator's to fix, so it is printed as a
+  // plain, actionable line rather than a stringified error object.
+  if (error instanceof ConfigurationError) {
+    process.stderr.write(`\nStartup failed: ${error.message}\n\n`);
+    process.exit(1);
+  }
+
   if (error instanceof EnvValidationError) {
     // The logger itself depends on a valid environment, so this one message is
     // written directly to stderr.

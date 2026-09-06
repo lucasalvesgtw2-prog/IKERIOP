@@ -1,5 +1,6 @@
-import { Client, GatewayIntentBits, Options, Partials } from 'discord.js';
+import { Client, DiscordAPIError, GatewayIntentBits, Options, Partials } from 'discord.js';
 import { getEnv } from '../config/env.js';
+import { ConfigurationError } from '../core/errors.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('discord');
@@ -36,8 +37,72 @@ export function createDiscordClient(): Client {
   return client;
 }
 
+/**
+ * Logs in, turning the two failures an operator actually hits into messages
+ * that say what to do. discord.js reports a rejected token as a bare
+ * `DiscordAPIError[undefined]: No Description`, and a blocked network as an
+ * opaque fetch failure — neither of which tells anyone where to look.
+ */
 export async function loginDiscordClient(client: Client): Promise<void> {
   const env = getEnv();
-  await client.login(env.DISCORD_BOT_TOKEN);
+
+  try {
+    await client.login(env.DISCORD_BOT_TOKEN);
+  } catch (error) {
+    throw new ConfigurationError(describeLoginFailure(error), {
+      // Never the token itself — only whether one was present and its shape.
+      tokenLength: env.DISCORD_BOT_TOKEN.length,
+    });
+  }
+
   log.info({ user: client.user?.tag }, 'discord client logged in');
+}
+
+function describeLoginFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/disallowed intents/i.test(message)) {
+    return [
+      'Discord rejected the requested gateway intents.',
+      'Enable the SERVER MEMBERS INTENT for this application at',
+      'https://discord.com/developers/applications → your app → Bot → Privileged Gateway Intents.',
+    ].join(' ');
+  }
+
+  if (/fetch failed|ENOTFOUND|ECONNREFUSED|EAI_AGAIN|ETIMEDOUT/i.test(message)) {
+    return [
+      'Could not reach Discord.',
+      "Check this machine's internet access, any proxy or firewall, and that",
+      'discord.com is not blocked.',
+      `(Underlying error: ${message})`,
+    ].join(' ');
+  }
+
+  if (/401|unauthorized|invalid token/i.test(message)) {
+    return [
+      'Discord rejected the bot token.',
+      'DISCORD_BOT_TOKEN must be the Bot token from',
+      'Developers Portal → your app → Bot → Reset Token —',
+      'not the application id and not the client secret.',
+      `(Discord said: ${message})`,
+    ].join(' ');
+  }
+
+  // discord.js reports a rejected token and a proxy that intercepts the
+  // request identically: a DiscordAPIError with no usable description. Naming
+  // only one cause would send an operator down the wrong path, so both are
+  // listed rather than guessing.
+  if (error instanceof DiscordAPIError) {
+    return [
+      `Discord refused the login (${message}).`,
+      'The two usual causes are:',
+      '(1) DISCORD_BOT_TOKEN is wrong — it must be the Bot token from',
+      'Developers Portal → your app → Bot → Reset Token, not the application id',
+      'or the client secret; or',
+      '(2) something between this machine and discord.com is intercepting the',
+      'request — a proxy, firewall or corporate network.',
+    ].join(' ');
+  }
+
+  return `Discord login failed: ${message}`;
 }
